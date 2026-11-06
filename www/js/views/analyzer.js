@@ -1,12 +1,13 @@
 // محلل المقام: ارفع أغنية أو سجّل مقطعاً، فيحدد التطبيق المقام والقرار مع الدليل
 import { h, card, slider, toast, icon } from '../ui.js';
 import { getCtx, stopAll } from '../audio.js';
-import { MAQAMAT, AJNAS, spelledName, stepsToOffsets } from '../theory.js';
-import { SR, tonicFromQ } from '../maqam-analyzer.js';
+import { MAQAMAT, AJNAS, MAQAM_CHARACTER, spelledName, stepsToOffsets } from '../theory.js';
+import { SR, tonicFromQ, trackPitch, analyzeFrames, FRAME, HOP } from '../maqam-analyzer.js';
 import { ALL } from '../lessons/index.js';
 
-let state = { worker: null, stream: null, proc: null, audio: null, url: null };
+let state = { worker: null, stream: null, proc: null, audio: null, url: null, live: null };
 export function cleanup() {
+  stopLive();
   if (state.worker) { state.worker.terminate(); state.worker = null; }
   stopRec();
   if (state.audio) { state.audio.pause(); state.audio = null; }
@@ -38,22 +39,32 @@ export function renderAnalyzer(app) {
   app.append(h('p', { class: 'muted', style: { marginTop: '-6px' } }, 'ارفع أغنية أو جزءاً منها، أو سجّل من المايكروفون، وسيحدد التطبيق المقام والقرار ويشرح لك لماذا. التحليل يتم على جهازك دون إنترنت.'));
 
   const fileIn = h('input', { type: 'file', accept: 'audio/*,video/mp4,.mp3,.m4a,.wav,.ogg,.aac,.flac', style: { display: 'none' } });
-  const recBtn = h('button', { class: 'btn' }, '🎙️ سجّل من المايكروفون');
+  const recBtn = h('button', { class: 'btn' }, '🎙️ سجّل مقطعاً');
+  const liveBtn = h('button', { class: 'btn' }, '📡 استمع مباشرة');
+  const livePanel = h('div');
   const pickBtn = h('button', { class: 'btn primary', onclick: () => fileIn.click() }, '📁 اختر ملف أغنية');
   const status = h('div', { class: 'muted', style: { fontSize: '.88rem', marginTop: '8px' } });
   const editor = h('div');
   const results = h('div');
-  app.append(card(null, h('div', { class: 'row' }, pickBtn, recBtn), fileIn, status), editor, results,
+  app.append(card(null, h('div', { class: 'row' }, pickBtn, recBtn, liveBtn), fileIn, status), livePanel, editor, results,
     card('نصائح لأدق نتيجة', h('ul', { style: { margin: 0, paddingInlineStart: '18px' } },
       h('li', {}, 'اختر مقطعاً فيه غناء أو عزف منفرد واضح، 30 إلى 60 ثانية.'),
+      h('li', {}, 'لأغنية على يوتيوب أو التلفزيون: شغّلها من جهاز آخر وقرّب الجوال، واستخدم «استمع مباشرة».'),
       h('li', {}, 'المذهب أو بداية الأغنية أفضل غالباً، لأن الأغنية قد تتحول لمقام آخر لاحقاً.'),
       h('li', {}, 'المقامات الشقيقة (البياتي والحسيني مثلاً) تختلف في الجنس الأعلى، فتحتاج مقطعاً يصعد إليه.'),
       h('li', {}, 'النتيجة تقدير آلي: استخدم الدليل بالسنت وأذنك لتأكيدها.'))));
 
   let decoded = null; // AudioBuffer
+  liveBtn.addEventListener('click', () => {
+    if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; return; }
+    editor.innerHTML = ''; results.innerHTML = '';
+    startLive(livePanel, status).then(ok => { if (ok) liveBtn.textContent = '■ أوقف الاستماع'; });
+  });
   fileIn.addEventListener('change', async () => {
     const f = fileIn.files[0];
     if (!f) return;
+    if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; }
+    livePanel.innerHTML = '';
     status.textContent = `جارٍ قراءة ${f.name}…`;
     results.innerHTML = '';
     try {
@@ -93,6 +104,8 @@ export function renderAnalyzer(app) {
       state.rec = { chunks, get len() { return len; }, sr: c.sampleRate };
       recording = true;
       recBtn.textContent = '■ أوقف التسجيل';
+      if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; }
+      livePanel.innerHTML = '';
       results.innerHTML = ''; editor.innerHTML = '';
     } catch (e) { status.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; }
   });
@@ -197,6 +210,10 @@ export function renderAnalyzer(app) {
       h('h1', { style: { margin: '4px 0' } }, m.name),
       h('p', { style: { margin: '0 0 6px' } }, `القرار: `, h('b', {}, tonicName(b.q)), ` · ${AJNAS[m.ajnas[0]].name} + ${AJNAS[m.ajnas[1]].name}`),
       h('p', { class: 'muted', style: { fontSize: '.9rem' } }, m.desc),
+      h('div', { class: 'row', style: { fontSize: '.88rem' } },
+        MAQAM_CHARACTER[b.id] ? h('span', {}, h('b', {}, 'الطابع: '), MAQAM_CHARACTER[b.id].mood) : null,
+        res.bpm ? h('span', { class: 'pill' }, `BPM ≈ ${res.bpm}`) : null),
+      MAQAM_CHARACTER[b.id] ? h('div', { class: 'muted', style: { fontSize: '.82rem', marginTop: '4px' } }, 'يتحول عادة إلى: ' + MAQAM_CHARACTER[b.id].mods.map(k => MAQAMAT[k].name.replace('مقام ', '')).join('، ')) : null,
       conf < 45 ? h('p', { style: { fontSize: '.88rem', color: 'var(--quarter)' } }, 'المقامات المرشحة متقاربة. جرّب مقطعاً أطول يصعد فيه اللحن للجنس الأعلى، أو قارن بالدليل أدناه.') : null,
       h('div', { class: 'row', style: { marginTop: '8px' } },
         h('a', { class: 'btn primary small', href: `#/explore/maqam/${b.id}/${t.pc}` }, '🗺️ اعزفه على الزند'),
@@ -258,3 +275,154 @@ function histogramSvg(hist, best) {
 }
 
 function fmt(s) { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+
+
+// ================= الاستماع المباشر =================
+function stopLive() {
+  const L = state.live;
+  if (!L) return;
+  clearInterval(L.timer); clearInterval(L.timer2);
+  try { L.proc.disconnect(); } catch (e) {}
+  L.stream.getTracks().forEach(t => t.stop());
+  state.live = null;
+}
+
+async function startLive(panel, status) {
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); }
+  catch (e) { status.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; return false; }
+  const c = getCtx();
+  const src = c.createMediaStreamSource(stream);
+  const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 110;
+  const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
+  const proc = c.createScriptProcessor(2048, 1, 1);
+  const mute = c.createGain(); mute.gain.value = 0;
+  src.connect(hp).connect(lp).connect(proc); proc.connect(mute); mute.connect(c.destination);
+  const CAP = SR * 40;
+  const L = { stream, proc, buf: new Float32Array(CAP), len: 0, done: 0, frames: [], t0: c.currentTime, shown: null, pending: null, gain: 1 };
+  state.live = L;
+  const ratio = c.sampleRate / SR;
+  let phase = 0;
+  proc.onaudioprocess = e => {
+    const d = e.inputBuffer.getChannelData(0);
+    // إعادة أخذ العينات إلى 11025 بالمتوسط
+    const out = [];
+    while (phase + ratio <= d.length) {
+      const a = Math.floor(phase), b = Math.min(d.length, Math.floor(phase + ratio));
+      let s = 0; for (let i = a; i < b; i++) s += d[i];
+      out.push(s / Math.max(1, b - a));
+      phase += ratio;
+    }
+    phase -= d.length;
+    if (L.len + out.length > CAP) { // أبقِ آخر 20 ثانية
+      const keep = SR * 20, cut = L.len - keep;
+      L.buf.copyWithin(0, cut, L.len); L.len = keep; L.done = Math.max(0, L.done - cut);
+    }
+    // تكبير تلقائي بسيط
+    let pk = 0; for (const v of out) pk = Math.max(pk, Math.abs(v));
+    if (pk > 0) L.gain = Math.min(50, 0.95 * L.gain + 0.05 * (0.5 / pk));
+    for (const v of out) L.buf[L.len++] = v * L.gain;
+  };
+
+  // الواجهة
+  panel.innerHTML = '';
+  const name = h('h1', { style: { margin: '2px 0' } }, 'أستمع…');
+  const sub = h('div', { class: 'muted' }, 'شغّل الأغنية قرب الجوال');
+  const conf = h('span', { class: 'pill' }, '—');
+  const bpmEl = h('span', { class: 'pill' }, 'BPM —');
+  const mood = h('div', { class: 'muted', style: { fontSize: '.85rem' } });
+  const canvas = h('canvas', { style: { width: '100%', height: '200px', display: 'block', background: 'var(--bg2)', borderRadius: '10px', marginTop: '10px' } });
+  const histHost = h('div');
+  const links = h('div', { class: 'row', style: { marginTop: '8px' } });
+  panel.append(h('section', { class: 'card hl' },
+    h('div', { class: 'row between' }, h('span', { class: 'row' }, h('span', { class: 'rec' }), h('span', { class: 'muted' }, 'استماع مباشر')), h('span', { class: 'row' }, bpmEl, conf)),
+    name, sub, mood, canvas, histHost, links,
+    h('p', { class: 'muted', style: { fontSize: '.78rem', margin: '8px 0 0' } }, 'الخطوط الأفقية = درجات المقام المكتشف. النقاط = اللحن الذي يسمعه التطبيق الآن.')));
+  status.textContent = '';
+
+  // تتبع الطبقة دورياً
+  const need = FRAME + Math.floor(SR / 70) + 2;
+  L.timer = setInterval(() => {
+    if (L.len - L.done < need + HOP * 4) return;
+    const seg = L.buf.subarray(L.done, L.len);
+    const fr = trackPitch(seg);
+    const tBase = L.frames.length ? L.frames[L.frames.length - 1].t + HOP / SR : 0;
+    fr.forEach((f, i) => { f.t = tBase + i * HOP / SR; });
+    L.frames.push(...fr);
+    L.done += fr.length * HOP;
+    const maxF = Math.round(25 / (HOP / SR));
+    if (L.frames.length > maxF) L.frames.splice(0, L.frames.length - maxF);
+    draw();
+  }, 200);
+
+  // تحليل المقام كل ثانية ونصف
+  L.timer2 = setInterval(() => {
+    if (L.frames.length < 200) return;
+    const res = analyzeFrames(L.frames, { timeline: false });
+    if (!res.ok) { sub.textContent = 'لم أسمع لحناً واضحاً بعد… قرّب الجوال من مصدر الصوت'; return; }
+    const b = res.ranking[0];
+    const key = b.id + ':' + b.q;
+    // ثبات العرض: لا نغيّر المقام إلا إذا تكرر مرتين
+    if (L.shown && key !== L.shown.key) {
+      if (!L.pending || L.pending !== key) { L.pending = key; return; }
+    }
+    L.pending = null;
+    L.shown = { key, b, res };
+    const m = MAQAMAT[b.id];
+    name.textContent = m.name;
+    sub.textContent = `القرار: ${tonicName(b.q)}`;
+    conf.textContent = `${Math.round(b.prob * 100)}%`;
+    conf.className = `pill${b.prob >= 0.7 ? ' ok' : ''}`;
+    bpmEl.textContent = res.bpm ? `BPM ≈ ${res.bpm}` : 'BPM —';
+    mood.textContent = MAQAM_CHARACTER[b.id] ? `الطابع: ${MAQAM_CHARACTER[b.id].mood}` : '';
+    histHost.innerHTML = ''; histHost.append(histogramSvg(res.histogram, b));
+    links.innerHTML = '';
+    const ls = lessonFor(b.id);
+    links.append(h('a', { class: 'btn primary small', href: `#/explore/maqam/${b.id}/${tonicFromQ(b.q).pc}` }, '🗺️ على الزند'), ls ? h('a', { class: 'btn small', href: `#/lesson/${ls.id}` }, '📘 الدرس') : null);
+  }, 1500);
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    if (!W) return;
+    if (canvas.width !== W * dpr) { canvas.width = W * dpr; canvas.height = H * dpr; }
+    const g = canvas.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    const css = getComputedStyle(document.body);
+    const fr = L.frames;
+    if (!fr.length) return;
+    const tEnd = fr[fr.length - 1].t, span = 12;
+    const vis = fr.filter(f => f.t > tEnd - span && f.cents != null && f.clarity > 0.75);
+    if (!vis.length) return;
+    const sorted = vis.map(f => f.cents).sort((a, b) => a - b);
+    const mid = sorted[Math.floor(sorted.length / 2)];
+    const lo = mid - 900, hi = mid + 900;
+    const y = c => H - ((c - lo) / (hi - lo)) * H;
+    // خطوط درجات المقام
+    if (L.shown) {
+      const { b, res } = L.shown;
+      const t = tonicFromQ(b.q);
+      const offs = stepsToOffsets(MAQAMAT[b.id].asc).map(o => o * 50);
+      const tonicAbs = b.q * 50 + res.tuningOffset;
+      g.font = '10px system-ui'; g.textAlign = 'left';
+      for (let oct = Math.floor((lo - tonicAbs) / 1200) - 1; oct <= Math.ceil((hi - tonicAbs) / 1200) + 1; oct++) {
+        offs.forEach((o, i) => {
+          const c = tonicAbs + oct * 1200 + o;
+          if (c < lo || c > hi) return;
+          g.strokeStyle = i === 0 ? css.getPropertyValue('--root') : 'rgba(200,180,150,.25)';
+          g.lineWidth = i === 0 ? 1.5 : 1;
+          g.beginPath(); g.moveTo(0, y(c)); g.lineTo(W, y(c)); g.stroke();
+          g.fillStyle = 'rgba(200,180,150,.7)';
+          g.fillText(spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0) + o / 50, t.pc, i), 4, y(c) - 2);
+        });
+      }
+    }
+    g.fillStyle = css.getPropertyValue('--accent');
+    for (const f of vis) {
+      const x = W - ((tEnd - f.t) / span) * W;
+      g.fillRect(x - 1.5, y(f.cents) - 1.5, 3, 3);
+    }
+  }
+  return true;
+}

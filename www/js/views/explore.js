@@ -2,7 +2,7 @@
 import { h, select, slider, toggle, card } from '../ui.js';
 import { Fretboard, chordDiagram, voicingFreqs } from '../fretboard.js';
 import { allPositions, windowPattern, npsPattern, labelFor, assignFingers } from '../exercises.js';
-import { SCALES, MAQAMAT, ROOTS, getScale, scaleOffsets, CHORD_TYPES, chordVoicings, chordName, chordNameInKey, chordNotes, pcName, noteName, rootQ, diatonicChords, spelledName } from '../theory.js';
+import { SCALES, MAQAMAT, MAQAM_CHARACTER, ROOTS, getScale, scaleOffsets, CHORD_TYPES, chordVoicings, chordName, chordNameInKey, chordNotes, pcName, noteName, rootQ, diatonicChords, spelledName } from '../theory.js';
 import { Player } from '../player.js';
 import { strum, pluck, droneStart, droneStop } from '../audio.js';
 import { freqOfQ } from '../theory.js';
@@ -93,6 +93,9 @@ export function renderExplore(app, params = {}) {
     const names = off.map((o, i) => (off.length === 7 ? spelledName(base + o, st.root, i) : noteName(base + o)));
     info.append(h('h3', {}, `${sc.name} من ${names[0]}`));
     if (sc.desc) info.append(h('p', {}, sc.desc));
+    const ch = MAQAM_CHARACTER[st.id];
+    if (ch) info.append(h('p', {}, h('b', {}, 'الطابع: '), ch.mood),
+      h('div', { class: 'row', style: { marginBottom: '8px' } }, h('b', {}, 'تحويلات شائعة:'), ch.mods.map(k => h('a', { class: 'btn small', href: `#/explore/maqam/${k}` }, MAQAMAT[k].name.replace('مقام ', '')))));
     info.append(h('table', { class: 't' },
       h('tr', {}, h('th', {}, 'النوتات'), h('td', {}, names.join('، '))),
       h('tr', {}, h('th', {}, 'المسافات'), h('td', {}, stepsText(sc.steps || sc.asc))),

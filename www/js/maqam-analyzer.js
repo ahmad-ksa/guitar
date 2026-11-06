@@ -3,7 +3,7 @@
 import { MAQAMAT, AJNAS, stepsToOffsets } from './theory.js';
 
 export const SR = 11025;           // معدل العينات للتحليل
-const FRAME = 1024, HOP = 256;     // ~93ms نافذة، ~23ms خطوة
+export const FRAME = 1024, HOP = 256; // ~93ms نافذة، ~23ms خطوة
 const FMIN = 70, FMAX = 1400;
 const BINS = 120;                  // 10 سنت لكل خانة في الأوكتاف
 
@@ -255,7 +255,32 @@ export function analyzeFrames(frames, opts = {}) {
     evidence,
     timeline,
     notesCount: notes.length,
+    bpm: opts.bpm === false ? null : estimateBpm(frames),
   };
+}
+
+// ===== سرعة الإيقاع (BPM) تقريبية من غلاف الطاقة =====
+export function estimateBpm(frames) {
+  const hop = HOP / SR;
+  const e = frames.map(f => Math.log(1e-4 + f.rms));
+  const on = e.map((v, i) => (i ? Math.max(0, v - e[i - 1]) : 0));
+  const mean = on.reduce((a, b) => a + b, 0) / (on.length || 1);
+  const o = on.map(v => v - mean);
+  if (o.length < 200) return null;
+  let best = null;
+  for (let bpm = 60; bpm <= 190; bpm += 0.5) {
+    const lag = 60 / bpm / hop;
+    let s = 0, n = 0;
+    for (let i = 0; i + lag * 2 < o.length; i++) {
+      const a = o[Math.round(i + lag)], b = o[Math.round(i + 2 * lag)];
+      s += o[i] * a + 0.5 * o[i] * b; n++;
+    }
+    s /= n || 1;
+    // تفضيل خفيف للسرعات المعتادة حول 100
+    s *= Math.exp(-Math.pow(Math.log2(bpm / 105), 2) / 1.2);
+    if (!best || s > best.s) best = { bpm, s };
+  }
+  return best && best.s > 0 ? Math.round(best.bpm) : null;
 }
 
 // اسم القرار من رقم ربع التون (0 = دو)

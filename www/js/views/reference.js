@@ -1,6 +1,6 @@
 // المرجع والإعدادات
 import { h, card, select, slider, toggle, toast } from '../ui.js';
-import { GLOSSARY, MAQAMAT, AJNAS, SCALES, CIRCLE_OF_FIFTHS, pcName, NOTE_LATIN, RHYTHMS, setNotation, diatonicChords, chordName } from '../theory.js';
+import { GLOSSARY, MAQAMAT, MAQAM_CHARACTER, AJNAS, SCALES, CIRCLE_OF_FIFTHS, pcName, NOTE_LATIN, RHYTHMS, setNotation, diatonicChords, chordName } from '../theory.js';
 import { Fretboard } from '../fretboard.js';
 import { noteList, stepsText } from '../lessons/helpers.js';
 import * as store from '../store.js';
@@ -22,7 +22,7 @@ export function renderReference(app, sub) {
     app.append(card('الأجناس', h('table', { class: 't' }, h('tr', {}, h('th', {}, 'الجنس'), h('th', {}, 'الأبعاد')),
       Object.values(AJNAS).map(j => h('tr', {}, h('td', {}, j.name), h('td', {}, stepsText(j.steps)))))));
     app.append(card('المقامات', h('table', { class: 't' }, h('tr', {}, h('th', {}, 'المقام'), h('th', {}, 'النوتات'), h('th', {}, '¼')),
-      Object.entries(MAQAMAT).map(([k, m]) => h('tr', {}, h('td', {}, h('a', { href: `#/explore/maqam/${k}` }, m.name), h('div', { class: 'muted', style: { fontSize: '.75rem' } }, `${AJNAS[m.ajnas[0]].name} + ${AJNAS[m.ajnas[1]].name}`)),
+      Object.entries(MAQAMAT).map(([k, m]) => h('tr', {}, h('td', {}, h('a', { href: `#/explore/maqam/${k}` }, m.name), h('div', { class: 'muted', style: { fontSize: '.75rem' } }, `${AJNAS[m.ajnas[0]].name} + ${AJNAS[m.ajnas[1]].name}`), h('div', { class: 'muted', style: { fontSize: '.75rem' } }, MAQAM_CHARACTER[k]?.mood || '')),
         h('td', {}, noteList(k, m.root, !!m.rootQuarter)), h('td', {}, m.quarter ? '✓' : ''))))));
   } else if (cur === 'scales') {
     app.append(card('السلالم (من دو)', h('table', { class: 't' }, h('tr', {}, h('th', {}, 'السلم'), h('th', {}, 'الدرجات')),

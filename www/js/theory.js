@@ -134,6 +134,28 @@ export const MAQAMAT = {
                 desc: 'سيكاه على القرار وحجاز على الثالثة. شديد التعبير.' },
 };
 
+
+// طابع كل مقام والتحويلات الشائعة منه (مراجعة المايسترو)
+export const MAQAM_CHARACTER = {
+  ajam:        { mood: 'فرح، احتفال، إشراق', mods: ['nahawand', 'kurd', 'hijaz', 'rast'] },
+  nahawand:    { mood: 'رومانسية، عاطفة، حنين', mods: ['hijaz', 'kurd', 'ajam', 'nikriz'] },
+  kurd:        { mood: 'شجن هادئ، تأمل', mods: ['nahawand', 'hijaz', 'bayati', 'ajam'] },
+  hijaz:       { mood: 'روحانية، شوق، طابع صحراوي', mods: ['bayati', 'rast', 'nahawand', 'saba'] },
+  hijazkar:    { mood: 'فخامة، دراما', mods: ['nahawand', 'hijaz', 'nikriz'] },
+  nikriz:      { mood: 'غموض، توتر جميل', mods: ['nahawand', 'rast', 'hijaz'] },
+  nawaAthar:   { mood: 'غرابة، لون شرقي حاد', mods: ['nikriz', 'nahawand', 'hijaz'] },
+  rast:        { mood: 'فخر، ثبات، رجولة', mods: ['suznak', 'nahawand', 'bayati', 'sikah', 'hijaz'] },
+  suznak:      { mood: 'حنين بلمسة حادة', mods: ['rast', 'hijaz', 'nahawand'] },
+  jiharkah:    { mood: 'بهجة وخفة', mods: ['ajam', 'rast', 'bayati'] },
+  bayati:      { mood: 'حنين، ألفة، دفء شعبي', mods: ['saba', 'hijaz', 'rast', 'nahawand', 'husseini'] },
+  husseini:    { mood: 'حنين متصاعد، طرب', mods: ['bayati', 'rast', 'hijaz'] },
+  bayatiShuri: { mood: 'شجن قوي، تضرع', mods: ['bayati', 'hijaz', 'saba'] },
+  saba:        { mood: 'حزن عميق، بكاء', mods: ['hijaz', 'ajam', 'bayati', 'nahawand'] },
+  sabaZamzam:  { mood: 'حزن حاد', mods: ['hijaz', 'kurd', 'saba'] },
+  sikah:       { mood: 'روحانية، تأمل، إنشاد', mods: ['huzam', 'rast', 'bayati'] },
+  huzam:       { mood: 'تعبير قوي، عاطفة', mods: ['sikah', 'rast', 'hijaz'] },
+};
+
 // يعيد مجموعة الدرجات (بأرباع التون من القرار) لسلم أو مقام
 export function getScale(id) {
   if (SCALES[id]) return { id, ...SCALES[id], type: 'scale' };
