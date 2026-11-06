@@ -10,6 +10,7 @@ import { renderLesson, cleanup as cleanLesson, pause as pauseLesson } from './vi
 import { renderExplore, renderChords, cleanup as cleanExplore } from './views/explore.js';
 import { renderTuner, renderRhythm, renderEar, renderSongs, cleanup as cleanTools, pause as pauseTools } from './views/tools.js';
 import { renderReference, renderSettings } from './views/reference.js';
+import { renderAnalyzer, cleanup as cleanAnalyzer } from './views/analyzer.js';
 
 const app = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -25,13 +26,13 @@ const NAV = [['#/', 'home', 'الرئيسية'], ['#/levels', 'book', 'الدر�
 function drawNav(path) {
   nav.innerHTML = '';
   for (const [href, ic, label] of NAV) {
-    const on = href === '#/' ? path === '' : path.startsWith(href.slice(2).split('/')[0]) || (href === '#/levels' && /^(level|lesson|exam)/.test(path)) || (href === '#/tools' && /^(explore|chords|tuner|rhythm|ear|songs|progress)/.test(path));
+    const on = href === '#/' ? path === '' : path.startsWith(href.slice(2).split('/')[0]) || (href === '#/levels' && /^(level|lesson|exam)/.test(path)) || (href === '#/tools' && /^(explore|chords|tuner|rhythm|ear|songs|progress|analyzer)/.test(path));
     nav.append(h('a', { href, class: on ? 'on' : '' }, icon(ic), label));
   }
 }
 
 function route() {
-  cleanLesson(); cleanExplore(); cleanTools();
+  cleanLesson(); cleanExplore(); cleanTools(); cleanAnalyzer();
   const path = location.hash.replace(/^#\/?/, '');
   const [p0, p1, p2, p3] = path.split('/');
   app.innerHTML = '';
@@ -51,6 +52,7 @@ function route() {
       case 'rhythm': renderRhythm(app); break;
       case 'ear': renderEar(app); break;
       case 'songs': renderSongs(app); break;
+      case 'analyzer': renderAnalyzer(app); break;
       case 'reference': renderReference(app, p1); break;
       case 'settings': renderSettings(app); break;
       case 'progress': renderProgress(app); break;

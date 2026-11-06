@@ -33,6 +33,9 @@ export function renderHome(app) {
       h('div', { class: 'muted', style: { fontSize: '.85rem' } }, `المستوى ${next.level} · ${next.unit}`),
       h('div', { class: 'row', style: { marginTop: '10px' } }, h('span', { class: 'btn primary small' }, icon('play'), 'افتح الدرس'))));
   }
+  app.append(h('a', { class: 'card', href: '#/analyzer', style: { display: 'flex', gap: '12px', alignItems: 'center', color: 'inherit' } },
+    h('span', { style: { fontSize: '2rem' } }, '🔍'),
+    h('div', {}, h('b', {}, 'محلل المقام — جديد'), h('div', { class: 'muted', style: { fontSize: '.85rem' } }, 'ارفع أغنية أو جزءاً منها، واعرف مقامها وقرارها مع الدليل.'))));
   app.append(h('h2', {}, 'المستويات'));
   for (const lv of LEVELS) app.append(levelCard(lv));
   app.append(h('h2', { style: { marginTop: '18px' } }, 'الأدوات'));
@@ -55,6 +58,7 @@ function levelCard(lv) {
 
 export function toolsGrid() {
   const tools = [
+    ['#/analyzer', '🔍', 'محلل المقام', 'ارفع أغنية واعرف مقامها'],
     ['#/explore', '🗺️', 'مستكشف السلالم والمقامات', 'أي سلم أو مقام على الزند'],
     ['#/chords', '🎹', 'مكتبة الكوردات', 'كل الأنواع لكل القرارات'],
     ['#/tuner', '🎯', 'الدوزان', 'بالمايكروفون مع السنت'],
