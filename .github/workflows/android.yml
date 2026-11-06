@@ -58,14 +58,27 @@ jobs:
       - name: نسخ ملفات التطبيق إلى مشروع أندرويد
         run: npx cap sync android
 
-      - name: بناء APK
+      - name: فك تشفير مفتاح التوقيع
+        env:
+          PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$PASS" ]; then
+            echo "::error::أضف السر ANDROID_KEYSTORE_PASSWORD في إعدادات المستودع (Settings → Secrets and variables → Actions)"
+            exit 1
+          fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in android/app/release.jks.enc -out android/app/release.jks -pass env:PASS
+
+      - name: بناء APK موقّع
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: تسمية الملف
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk guitar-academy.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk guitar-academy.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -80,4 +93,4 @@ jobs:
           gh release delete latest --cleanup-tag -y || true
           gh release create latest guitar-academy.apk \
             --title "أكاديمية الجيتار — آخر إصدار" \
-            --notes "ملف APK جاهز للتثبيت على أندرويد. نزّله من الجوال وافتحه، واسمح بالتثبيت من مصادر غير معروفة إن طُلب منك. بُني من الالتزام ${GITHUB_SHA::7}."
+            --notes "ملف APK جاهز للتثبيت على أندرويد. نزّله من الجوال وافتحه، واسمح بالتثبيت من مصادر غير معروفة إن طُلب منك. الإصدار 1.0.${{ github.run_number }}. التحديثات القادمة تُثبَّت فوق هذا الإصدار مباشرة."
