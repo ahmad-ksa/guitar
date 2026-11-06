@@ -1,0 +1,54 @@
+# البنية التقنية (تقرير المبرمج)
+
+التطبيق صفحة ويب كاملة تعمل دون إنترنت، مغلّفة بـ [Capacitor](https://capacitorjs.com) لتصبح تطبيق أندرويد (APK). لا يوجد خادم ولا مكتبات خارجية في الواجهة.
+
+## الملفات
+
+| المسار | المحتوى |
+| --- | --- |
+| `www/index.html` | الصفحة الوحيدة، عربية من اليمين لليسار |
+| `www/css/app.css` | التصميم (داكن/فاتح) |
+| `www/js/theory.js` | النظرية: النوتات، 20 سلماً غربياً، 9 أجناس، 17 مقاماً، الكوردات، الإيقاعات، القاموس. كل المسافات بوحدة ربع التون |
+| `www/js/audio.js` | محرك الصوت: وتر مقطوف بخوارزمية Karplus-Strong بدقة ربع التون، طبلة (دُم/تَك)، مترونوم، درون، وكشف الطبقة (YIN) للدوزان |
+| `www/js/fretboard.js` | رسم الزند التفاعلي (SVG) والإضاءة المتحركة ومخططات الكوردات |
+| `www/js/exercises.js` | مولّد التمارين: صناديق البنتاتونيك، 3NPS، المواضع، التتابعات، الكوردات، الأربيجات، البِند |
+| `www/js/player.js` | مزامنة الصوت مع الإضاءة والمترونوم والإيقاع |
+| `www/js/speech.js` | الشرح الصوتي العربي (محرك أندرويد عبر إضافة text-to-speech، وبديل المتصفح) |
+| `www/js/lessons/` | المنهج: `l1.js`…`l5.js` لكل مستوى، و`helpers.js` لمولّدات دروس المودات والصناديق والمقامات |
+| `www/js/views/` | الصفحات: الدرس، المستكشف، الكوردات، الدوزان، الإيقاعات، الأذن، أدوات الأغاني، المرجع، الإعدادات |
+| `android/` | مشروع أندرويد المولّد من Capacitor (مع أذونات المايكروفون) |
+| `.github/workflows/android.yml` | يبني APK تلقائياً عند كل دفع وينشره في صفحة الإصدارات |
+
+## نموذج الدرس
+
+```js
+{
+  id: '1-22', title, goal, minutes,
+  voices: { pro, maestro, teacher },          // أصوات اللجنة
+  steps: [{ say, ex, drone?, rhythm? }],       // الشرح المسموع + التمرين المتحرك
+  practice: { ex, bpm, target, drone?, rhythm? },
+  quiz: [{ q, o: [...], a, e }],
+  checks: [...],                               // قائمة الإتقان
+}
+```
+
+`ex` وصف مختصر يحوّله `buildExercise` إلى نقاط على الزند وتسلسل زمني، مثل:
+
+```js
+{ type: 'nps', scale: 'minorPent', root: 9, nps: 2, box: 0, label: 'finger', sub: 2 }
+{ type: 'window', scale: 'rast', root: 0, from: 2, to: 6 }
+{ type: 'progression', chords: ['G', 'D', 'Em', 'C'], pattern: 'pop' }
+```
+
+## إضافة فيديو لاحقاً
+
+يكفي إضافة حقل `video: 'videos/1-22.mp4'` للخطوة، ووضع الملف في `www/videos/`، وعرضه في `views/lesson.js` داخل منطقة الشرح.
+
+## التشغيل محلياً
+
+```bash
+npm install
+npm run serve          # افتح http://localhost:8080
+npx cap sync android   # بعد أي تعديل في www
+npx cap open android   # للفتح في Android Studio
+```

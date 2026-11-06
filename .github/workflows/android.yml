@@ -1,0 +1,58 @@
+name: بناء تطبيق أندرويد (APK)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      - name: تثبيت الحزم
+        run: npm ci
+
+      - name: نسخ ملفات التطبيق إلى مشروع أندرويد
+        run: npx cap sync android
+
+      - name: بناء APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: تسمية الملف
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk guitar-academy.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: guitar-academy-apk
+          path: guitar-academy.apk
+
+      - name: نشر الإصدار للتحميل المباشر
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag -y || true
+          gh release create latest guitar-academy.apk \
+            --title "أكاديمية الجيتار — آخر إصدار" \
+            --notes "ملف APK جاهز للتثبيت على أندرويد. نزّله من الجوال وافتحه، واسمح بالتثبيت من مصادر غير معروفة إن طُلب منك. بُني من الالتزام ${GITHUB_SHA::7}."

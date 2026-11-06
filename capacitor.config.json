@@ -1,0 +1,8 @@
+{
+  "appId": "com.ahmadksa.guitaracademy",
+  "appName": "أكاديمية الجيتار",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#12100e"
+  }
+}
