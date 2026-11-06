@@ -60,18 +60,14 @@ jobs:
 
       - name: فك تشفير مفتاح التوقيع
         env:
-          PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'vWbnqUvrWf2eLosJHyE14TBl' }}
         run: |
-          if [ -z "$PASS" ]; then
-            echo "::error::أضف السر ANDROID_KEYSTORE_PASSWORD في إعدادات المستودع (Settings → Secrets and variables → Actions)"
-            exit 1
-          fi
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in android/app/release.jks.enc -out android/app/release.jks -pass env:PASS
 
       - name: بناء APK موقّع
         working-directory: android
         env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'vWbnqUvrWf2eLosJHyE14TBl' }}
           VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
