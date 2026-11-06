@@ -11,9 +11,15 @@ import { stopAll } from '../audio.js';
 
 const AVATARS = { pro: ['🎸', 'العازف المحترف'], maestro: ['🎼', 'المايسترو'], teacher: ['📘', 'مدرس الموسيقى'] };
 
-let current = null; // للتنظيف عند مغادرة الصفحة
+// جلسة الصفحة الحالية: تُلغى عند المغادرة، وتُوقف مؤقتاً عند خروج التطبيق للخلفية
+let session = null;
 export function cleanup() {
-  if (current) { current.stop(); current = null; }
+  if (session) { session.aborted = true; session.halt(); session = null; }
+  speech.stop();
+  stopAll();
+}
+export function pause() {
+  if (session) session.halt();
   speech.stop();
   stopAll();
 }
@@ -31,7 +37,7 @@ function droneFor(ex) {
   const sp = ex.spec || {};
   const sc = getScale(sp.scale);
   if (sp.root == null) return null;
-  return rootQ(sp.root, sp.rootQuarter ?? sc?.rootQuarter ?? false, 38);
+  return rootQ(sp.root, sp.rootQuarter ?? sc?.rootQuarter ?? false, 36);
 }
 
 export function renderLesson(app, id, isExam = false) {
@@ -62,7 +68,9 @@ export function renderLesson(app, id, isExam = false) {
   const steps = lesson.steps || [];
   let board = null;
   const player = new Player(null, { metronome: false, countIn: false });
-  current = player;
+  const sess = { aborted: false, playToken: 0, halts: [] };
+  sess.halt = () => { sess.playToken++; sess.halts.forEach(f => f()); player.stop(); };
+  session = sess;
   let stepIdx = 0;
   let watching = false;
   let labelMode = null; // null = حسب الخطوة
@@ -85,8 +93,8 @@ export function renderLesson(app, id, isExam = false) {
     const btnPrev = h('button', { class: 'btn small', onclick: () => go(stepIdx - 1) }, icon('prev'));
     const btnNext = h('button', { class: 'btn small', onclick: () => go(stepIdx + 1) }, icon('next'));
     const btnPlay = h('button', { class: 'btn primary', onclick: () => playStep(stepIdx) }, icon('play'), 'اشرح ووضّح');
-    const btnWatch = h('button', { class: 'btn', onclick: () => (watching ? stopWatch() : watchAll()) }, icon('film'), 'وضع المشاهدة');
-    const btnStop = h('button', { class: 'btn small', onclick: () => { stopWatch(); player.stop(); speech.stop(); sub.classList.remove('speaking'); } }, icon('stop'));
+    const btnWatch = h('button', { class: 'btn', onclick: () => { if (watching) { stopWatch(); sess.playToken++; player.stop(); speech.stop(); sub.classList.remove('speaking'); } else watchAll(); } }, icon('film'), 'وضع المشاهدة');
+    const btnStop = h('button', { class: 'btn small', onclick: () => { sess.halt(); speech.stop(); } }, icon('stop'));
 
     stage.append(head, watchBanner, sub, h('div', { class: 'row', style: { marginBottom: '8px' } }, seg), boardHost, legendHost, extraHost,
       h('div', { class: 'stepnav', style: { marginTop: '10px' } }, btnPrev, dots, btnNext),
@@ -137,7 +145,6 @@ export function renderLesson(app, id, isExam = false) {
         if (st.ex.type === 'progression' || (st.ex.type === 'arp' && st.ex.chords)) {
           const seenV = new Map();
           ex.events.forEach(e => { if (e.voicing && !seenV.has(e.label)) seenV.set(e.label, e.voicing); });
-          if (!seenV.size && st.ex.chords) {/* arp */}
           if (seenV.size) extraHost.append(h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '8px', gap: '4px' } }, [...seenV].map(([l, v]) => chordDiagram(v, l))));
         }
       } else if (st.rhythm) {
@@ -155,21 +162,30 @@ export function renderLesson(app, id, isExam = false) {
 
     function go(i) {
       if (i < 0 || i >= steps.length) return;
-      player.stop(); speech.stop(); sub.classList.remove('speaking');
+      sess.playToken++; player.stop(); speech.stop(); sub.classList.remove('speaking');
       showStep(i);
     }
 
     async function playStep(i, auto = false) {
       const st = steps[i];
+      const my = ++sess.playToken;
       player.stop();
       sub.classList.add('speaking');
-      await speech.speak(st.say);
-      sub.classList.remove('speaking');
+      const t0 = Date.now();
+      const spoke = await speech.speak(st.say);
+      // بدون صوت: أعطِ وقتاً كافياً لقراءة النص
+      if (!spoke && my === sess.playToken && !sess.aborted) {
+        const need = Math.max(2500, st.say.length * 65) - (Date.now() - t0);
+        if (need > 0) await new Promise(r => setTimeout(r, need));
+      }
+      if (my === sess.playToken) sub.classList.remove('speaking');
+      if (my !== sess.playToken || sess.aborted) return false;
       if (auto && !watching) return false;
       const ex = exFor(i);
       if (ex && (ex.events.length || st.rhythm)) {
         const rh = st.rhythm ? RHYTHMS[st.rhythm] : null;
         const bpm = Math.round((ex.bpm || 70) * tempoMul);
+        if (my !== sess.playToken || sess.aborted) return false;
         const ok = await player.play(ex, bpm, {
           metronome: false, countIn: false,
           drone: st.drone ? droneFor(ex) : null,
@@ -184,14 +200,15 @@ export function renderLesson(app, id, isExam = false) {
       watching = true;
       watchBanner.style.display = '';
       btnWatch.classList.add('on');
-      for (let i = stepIdx; i < steps.length && watching; i++) {
+      for (let i = stepIdx; i < steps.length && watching && !sess.aborted; i++) {
         showStep(i, false);
         const ok = await playStep(i, true);
-        if (!watching || ok === false) break;
+        if (!watching || ok === false || sess.aborted) break;
         await new Promise(r => setTimeout(r, 700));
       }
       stopWatch();
     }
+    sess.halts.push(() => { stopWatch(); sub.classList.remove('speaking'); });
     function stopWatch() { watching = false; watchBanner.style.display = 'none'; btnWatch.classList.remove('on'); }
 
     showStep(0, false);
@@ -222,7 +239,7 @@ export function renderLesson(app, id, isExam = false) {
     async function run() {
       running = true;
       playBtn.innerHTML = ''; playBtn.append(icon('stop'), 'أوقف');
-      while (running) {
+      while (running && !sess.aborted) {
         const ok = await pp.play(ex, bpm, {
           metronome: metro, countIn: true,
           drone: pr.drone ? droneFor(ex) : null,
@@ -230,7 +247,7 @@ export function renderLesson(app, id, isExam = false) {
         });
         store.tickPractice();
         if (!ok || !loop) break;
-        if (autoUp) { cleanCount++; if (cleanCount % 3 === 0 && bpm < 220) { bpm += 5; bpmSlider.querySelector('input').value = bpm; bpmSlider.querySelector('output').textContent = `${bpm} BPM`; toast(`السرعة ${bpm}`); } }
+        if (autoUp) { cleanCount++; if (cleanCount % 3 === 0 && bpm < 200) { bpm = Math.min(200, bpm + 5); bpmSlider.querySelector('input').value = bpm; bpmSlider.querySelector('output').textContent = `${bpm} BPM`; toast(`السرعة ${bpm}`); } }
       }
       running = false;
       playBtn.innerHTML = ''; playBtn.append(icon('play'), 'ابدأ');
@@ -246,8 +263,7 @@ export function renderLesson(app, id, isExam = false) {
         toggle('المترونوم', metro, v => { metro = v; }), toggle('تكرار', loop, v => { loop = v; }), toggle('رفع السرعة تلقائياً', autoUp, v => { autoUp = v; })),
       h('div', { class: 'row' }, playBtn, recBtn, bestEl));
     app.append(sec);
-    const oldStop = player.stop.bind(player);
-    player.stop = () => { running = false; pp.stop(); oldStop(); };
+    sess.halts.push(() => { running = false; pp.stop(); });
   }
 
   if (lesson.link) app.append(h('a', { class: 'btn', href: lesson.link.route, style: { marginBottom: '12px', width: '100%' } }, lesson.link.label));
@@ -257,7 +273,8 @@ export function renderLesson(app, id, isExam = false) {
     const qsec = h('section', { class: 'card' }, h('h3', {}, isExam ? 'أسئلة الاختبار' : 'اختبر فهمك'));
     let answered = 0, right = 0;
     const scoreEl = h('div', { class: 'muted' });
-    lesson.quiz.forEach((q, qi) => {
+    lesson.quiz.forEach((q0, qi) => {
+      const q = shuffleQuiz(q0);
       const box = h('div', { class: 'quiz-q' }, h('div', {}, h('b', {}, `${qi + 1}. `), q.q));
       const opts = h('div', { class: 'opts' });
       const exEl = h('div', { class: 'ex' });
@@ -320,6 +337,16 @@ export function renderLesson(app, id, isExam = false) {
       pv ? h('a', { class: 'btn small', href: `#/lesson/${pv.id}` }, `→ ${pv.title}`) : h('span'),
       nx ? h('a', { class: 'btn small', href: `#/lesson/${nx.id}` }, `${nx.title} ←`) : h('span')));
   }
+}
+
+// خلط الخيارات بترتيب ثابت لكل سؤال (إلا القوائم المرتبة بطبيعتها)
+const ORDERED = /^(نعم|لا|الأولى|الثانية|الثالثة|الرابعة|الخامسة|السادسة|السابعة|\d+)$/;
+function shuffleQuiz(q) {
+  if (q.o.length < 3 || q.o.every(o => ORDERED.test(o))) return q;
+  let seed = [...q.q].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const idx = q.o.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) { seed = (seed * 1103515245 + 12345) >>> 0; const j = seed % (i + 1); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  return { ...q, o: idx.map(i => q.o[i]), a: idx.indexOf(q.a) };
 }
 
 export function rhythmStrip(id) {

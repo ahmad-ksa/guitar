@@ -88,6 +88,7 @@ export const AJNAS = {
   hijaz:    { name: 'جنس حجاز', steps: [2,6,2], desc: 'نصف، تون ونصف، نصف. أشهر صوت شرقي، فيه البعد الكبير بين الدرجتين 2 و3.' },
   rast:     { name: 'جنس راست', steps: [4,3,3], desc: 'تون، ثلاثة أرباع، ثلاثة أرباع. الدرجة الثالثة نصف بيمول: لا كبيرة ولا صغيرة.' },
   bayati:   { name: 'جنس بياتي', steps: [3,3,4], desc: 'ثلاثة أرباع، ثلاثة أرباع، تون. روح الموسيقى العربية الشعبية.' },
+  sabaZamzam: { name: 'جنس صبا زمزمة', steps: [2,4,2], desc: 'نصف، تون، نصف. صبا بلا ربع تون، الرابعة ناقصة.' },
   saba:     { name: 'جنس صبا', steps: [3,3,2], desc: 'ثلاثة أرباع، ثلاثة أرباع، نصف. الرابعة ناقصة، صوت شجن عميق.' },
   sikah:    { name: 'جنس سيكاه', steps: [3,4], desc: 'ثلاثي يبدأ من نوتة نصف بيمول: ثلاثة أرباع ثم تون.' },
   nikriz:   { name: 'جنس نكريز', steps: [4,2,6,2], desc: 'خماسي: تون، نصف، تون ونصف، نصف.' },
@@ -125,7 +126,7 @@ export const MAQAMAT = {
                 desc: 'بياتي على القرار وحجاز على الرابعة. شجن قوي.' },
   saba:       { name: 'مقام الصبا', family: 'صبا', root: 2, asc: [3,3,2,6,2,4,4], ajnas: ['saba','hijaz'], ghammaz: 2, quarter: true,
                 desc: 'أكثر المقامات حزناً. الرابعة ناقصة (صول♭ من ري) وهي سر لونه.' },
-  sabaZamzam: { name: 'مقام الصبا زمزمة', family: 'صبا', root: 2, asc: [2,4,2,6,2,4,4], ajnas: ['saba','hijaz'], ghammaz: 2, quarter: false,
+  sabaZamzam: { name: 'مقام الصبا زمزمة', family: 'صبا', root: 2, asc: [2,4,2,6,2,4,4], ajnas: ['sabaZamzam','hijaz'], ghammaz: 2, quarter: false,
                 desc: 'صبا بلا ربع تون: الثانية بيمول كامل. يُعزف على الجيتار مباشرة.' },
   sikah:      { name: 'مقام السيكاه', family: 'سيكاه', root: 3, rootQuarter: true, asc: [3,4,4,3,3,4,3], ajnas: ['sikah','rast'], ghammaz: 2, quarter: true,
                 desc: 'قراره نفسه نصف بيمول (مي½♭). صوت روحاني يُسمع كثيراً في الإنشاد.' },
@@ -231,6 +232,14 @@ const MOVABLE = {
   },
 };
 
+const SHARP_KEYS_MAJOR = [7, 2, 9, 4, 11, 6];
+// اسم الكورد بتهجئة تناسب المفتاح (دييز في مفاتيح الدييز)
+export function chordNameInKey(pc, type, keyPc, mode = 'major') {
+  const relMajor = mode === 'major' ? keyPc : (keyPc + 3) % 12;
+  const names = SHARP_KEYS_MAJOR.includes(relMajor) ? NOTE_LATIN_SHARP : NOTE_LATIN;
+  return names[pc] + (CHORD_TYPES[type]?.sym ?? '');
+}
+
 export function chordName(pc, type, style = notation) {
   return pcName(pc, style) + (CHORD_TYPES[type]?.sym ?? '');
 }
@@ -269,7 +278,6 @@ export function chordVoicings(pc, type) {
     if (rootFret === 0 && openKey) rootFret = 12;
     const minOff = Math.min(...off.filter(o => o > -9));
     if (rootFret + minOff < 0) rootFret += 12;
-    if (rootFret + minOff === 0 && rootFret === 0) rootFret = 12;
     const frets = off.map(o => (o <= -9 ? -1 : rootFret + o));
     if (frets.some(f => f > 17)) continue;
     out.push({ label: `شكل ${shape} (القرار على الوتر ${6 - rootString})`, frets, fingers: guessFingers(frets), baseFret: Math.max(1, Math.min(...frets.filter(f => f > 0))) });
@@ -298,7 +306,7 @@ export const CIRCLE_OF_FIFTHS = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5];
 // تحليل اسم كورد نصي مثل "F#m7" أو "Bb" أو "دو صغير"
 const CHORD_RX = /^([A-G])([#b]?)(.*)$/;
 const SUFFIX_MAP = [
-  ['maj7', 'maj7'], ['M7', 'maj7'], ['m7b5', 'm7b5'], ['ø', 'm7b5'], ['dim7', 'dim7'], ['°7', 'dim7'],
+  ['maj7', 'maj7'], ['maj9', 'maj7'], ['M7', 'maj7'], ['maj', 'maj'], ['m7b5', 'm7b5'], ['ø', 'm7b5'], ['dim7', 'dim7'], ['°7', 'dim7'],
   ['m7', 'min7'], ['min7', 'min7'], ['m6', 'min6'], ['add9', 'add9'], ['sus2', 'sus2'], ['sus4', 'sus4'], ['sus', 'sus4'],
   ['dim', 'dim'], ['°', 'dim'], ['aug', 'aug'], ['+', 'aug'], ['min', 'min'], ['m', 'min'],
   ['9', 'dom9'], ['7', 'dom7'], ['6', 'six'], ['5', 'pow'], ['', 'maj'],
@@ -313,7 +321,7 @@ export function parseChord(str) {
   let rest = m[3];
   let bass = null;
   const slash = rest.indexOf('/');
-  if (slash >= 0) { bass = rest.slice(slash + 1); rest = rest.slice(0, slash); }
+  if (slash >= 0 && /^[A-G]/.test(rest.slice(slash + 1))) { bass = rest.slice(slash + 1); rest = rest.slice(0, slash); }
   for (const [suf, type] of SUFFIX_MAP) {
     if (rest === suf || (suf && rest.startsWith(suf) && suf.length > 0 && rest === suf)) return { pc, type, bass, raw: s };
   }
@@ -324,11 +332,12 @@ export function parseChord(str) {
 
 export function transposeChordText(text, semis, preferFlats = true) {
   const names = preferFlats ? NOTE_LATIN : NOTE_LATIN_SHARP;
-  return text.replace(/\b([A-G])([#b]?)/g, (all, l, acc) => {
+  // يغيّر رموز الكوردات فقط (لا الكلمات): حرف A–G يليه لاحقة كورد أو نهاية الكلمة
+  return text.replace(/(^|[\s\[(|\/,])([A-G])([#b]?)(?=(?:m|maj|min|dim|aug|sus|add|M|ø|°|\+|\d|\/|\]|\)|\||,|\s|$))/g, (all, pre, l, acc) => {
     let pc = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[l];
     if (acc === '#') pc++;
     if (acc === 'b') pc--;
-    return names[((pc + semis) % 12 + 12) % 12];
+    return pre + names[((pc + semis) % 12 + 12) % 12];
   });
 }
 

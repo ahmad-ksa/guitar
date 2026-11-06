@@ -174,10 +174,11 @@ export class Fretboard {
 // ===== مخطط الكورد العمودي =====
 export function chordDiagram(voicing, title) {
   const W = 120, H = 150, left = 18, top = 30, sw = 17, fh = 22;
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chord-svg', width: W, height: H });
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chord-svg', width: W, height: H, direction: 'ltr' });
   const played = voicing.frets.filter(f => f > 0);
   const maxF = played.length ? Math.max(...played) : 0;
-  const base = maxF <= 5 ? 1 : voicing.baseFret;
+  const minF = played.length ? Math.min(...played) : 1;
+  const base = maxF <= 5 ? 1 : (voicing.baseFret || minF);
   if (title) { const t = el('text', { x: W / 2, y: 13, class: 'cd-title' }, svg); t.textContent = title; }
   for (let i = 0; i < 6; i++) el('line', { x1: left + i * sw, y1: top, x2: left + i * sw, y2: top + fh * 5, class: 'cd-line' }, svg);
   for (let j = 0; j <= 5; j++) el('line', { x1: left, y1: top + j * fh, x2: left + 5 * sw, y2: top + j * fh, class: j === 0 && base === 1 ? 'cd-nut' : 'cd-line' }, svg);

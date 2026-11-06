@@ -1,13 +1,14 @@
 // نقطة الدخول: الموجّه والتنقل
 import { h, icon } from './ui.js';
+import { Capacitor, registerPlugin } from './vendor/capacitor-core.js';
 import * as store from './store.js';
 import * as speech from './speech.js';
 import { setNotation } from './theory.js';
 import { setVolume, getCtx } from './audio.js';
 import { renderHome, renderLevels, renderLevel, renderProgress, renderCommittee, toolsGrid } from './views/main.js';
-import { renderLesson, cleanup as cleanLesson } from './views/lesson.js';
+import { renderLesson, cleanup as cleanLesson, pause as pauseLesson } from './views/lesson.js';
 import { renderExplore, renderChords, cleanup as cleanExplore } from './views/explore.js';
-import { renderTuner, renderRhythm, renderEar, renderSongs, cleanup as cleanTools } from './views/tools.js';
+import { renderTuner, renderRhythm, renderEar, renderSongs, cleanup as cleanTools, pause as pauseTools } from './views/tools.js';
 import { renderReference, renderSettings } from './views/reference.js';
 
 const app = document.getElementById('app');
@@ -65,5 +66,18 @@ window.addEventListener('hashchange', route);
 // فتح سياق الصوت عند أول لمسة (شرط المتصفحات)
 const unlock = () => { getCtx(); setVolume(store.settings().volume); window.removeEventListener('pointerdown', unlock); };
 window.addEventListener('pointerdown', unlock);
-document.addEventListener('visibilitychange', () => { if (document.hidden) { speech.stop(); cleanLesson(); cleanTools(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { speech.stop(); pauseLesson(); pauseTools(); cleanExplore(); } });
+
+// زر الرجوع في أندرويد: يرجع للصفحة السابقة، ويخرج فقط من الرئيسية
+try {
+  if (Capacitor.isNativePlatform()) {
+    const AppPlugin = registerPlugin('App');
+    AppPlugin.addListener('backButton', () => {
+      const path = location.hash.replace(/^#\/?/, '');
+      if (path === '') AppPlugin.exitApp();
+      else if (history.length > 1) history.back();
+      else location.hash = '#/';
+    });
+  }
+} catch (e) { console.warn(e); }
 route();

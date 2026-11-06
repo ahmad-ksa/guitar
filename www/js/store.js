@@ -6,18 +6,19 @@ const defaults = {
   progress: { done: {}, quiz: {}, bestBpm: {}, checks: {}, minutes: 0, days: {}, last: null, exams: {} },
 };
 
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
 let state = load();
 
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return structuredClone(defaults);
+    if (!raw) return clone(defaults);
     const s = JSON.parse(raw);
     return {
-      settings: { ...defaults.settings, ...(s.settings || {}) },
-      progress: { ...defaults.progress, ...(s.progress || {}) },
+      settings: { ...clone(defaults.settings), ...(s.settings || {}) },
+      progress: { ...clone(defaults.progress), ...(s.progress || {}) },
     };
-  } catch (e) { return structuredClone(defaults); }
+  } catch (e) { return clone(defaults); }
 }
 
 export function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
@@ -60,6 +61,6 @@ export function streak() {
   return n;
 }
 
-export function resetAll() { state = structuredClone(defaults); save(); }
+export function resetAll() { state = clone(defaults); save(); }
 export function exportData() { return JSON.stringify(state); }
-export function importData(json) { const s = JSON.parse(json); state = { settings: { ...defaults.settings, ...s.settings }, progress: { ...defaults.progress, ...s.progress } }; save(); }
+export function importData(json) { const s = JSON.parse(json); state = { settings: { ...clone(defaults.settings), ...s.settings }, progress: { ...clone(defaults.progress), ...s.progress } }; save(); }

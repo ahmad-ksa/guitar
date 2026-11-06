@@ -31,7 +31,7 @@ function pluckBuffer(freq, bright = 0.5) {
   const sr = c.sampleRate;
   const N = Math.max(2, Math.floor(sr / freq));
   const key = N + ':' + bright.toFixed(2);
-  if (cache.has(key)) return { buf: cache.get(key), rate: (freq * N) / sr };
+  if (cache.has(key)) return { buf: cache.get(key), rate: (freq * (N - 0.5)) / sr };
   const dur = Math.min(3.2, 1.2 + 260 / freq);
   const len = Math.floor(sr * dur);
   const buf = c.createBuffer(1, len, sr);
@@ -49,13 +49,14 @@ function pluckBuffer(freq, bright = 0.5) {
   for (let i = 0; i < N; i++) d[i] -= mean;
   const decay = 0.996 + Math.min(0.0035, freq / 200000);
   for (let i = N; i < len; i++) {
-    d[i] = decay * 0.5 * (d[i - N] + d[i - N + 1 < i ? i - N + 1 : i - N]);
+    d[i] = decay * 0.5 * (d[i - N] + d[i - N + 1]);
   }
   // تطبيع
   let peak = 0; for (let i = 0; i < len; i++) peak = Math.max(peak, Math.abs(d[i]));
   if (peak > 0) for (let i = 0; i < len; i++) d[i] /= peak;
   cache.set(key, buf);
-  return { buf, rate: (freq * N) / sr };
+  // متوسط عيّنتين متجاورتين يجعل الدورة الفعلية N − 0.5
+  return { buf, rate: (freq * (N - 0.5)) / sr };
 }
 
 // عزف نوتة. when = وقت AudioContext. bendFrom: تردد البداية لعزف البِند
@@ -143,6 +144,7 @@ export function drum(kind, when = 0, gainMul = 1) {
     o.frequency.value = 820; og.gain.setValueAtTime(0.25 * v, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
     o.connect(og).connect(master); o.start(t); o.stop(t + 0.05);
     active.add(s); s.onended = () => active.delete(s);
+    active.add(o); o.onended = () => active.delete(o);
   }
 }
 
@@ -158,6 +160,7 @@ export function click(when = 0, accent = false) {
   g.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
   o.connect(g).connect(master);
   o.start(t); o.stop(t + 0.05);
+  active.add(o); o.onended = () => active.delete(o);
 }
 
 // نغمة ممتدة (درون) للتمرين على المقامات

@@ -1,12 +1,14 @@
 // الأدوات: الدوزان، المترونوم والإيقاعات، تدريب الأذن، أدوات الأغاني
 import { h, select, slider, toggle, card, toast } from '../ui.js';
 import { getCtx, detectPitch, pluck, strum, click, drum, droneStop, stopAll } from '../audio.js';
-import { OPEN_STRINGS, noteName, freqOfQ, RHYTHMS, MAQAMAT, SCALES, ROOTS, CHORD_TYPES, chordNotes, parseChord, detectKey, transposeChordText, diatonicChords, chordName, pcName, scaleOffsets, NOTE_LATIN } from '../theory.js';
+import { OPEN_STRINGS, noteName, freqOfQ, RHYTHMS, MAQAMAT, SCALES, ROOTS, CHORD_TYPES, chordNotes, parseChord, detectKey, transposeChordText, diatonicChords, chordName, chordNameInKey, pcName, scaleOffsets, NOTE_LATIN } from '../theory.js';
 import { windowPattern } from '../exercises.js';
 import { Player } from '../player.js';
 
 let stopper = null;
-export function cleanup() { if (stopper) { stopper(); stopper = null; } stopAll(); droneStop(); }
+let pageGen = 0; // يتغير عند مغادرة الصفحة لإلغاء المؤقتات المعلقة
+export function cleanup() { pageGen++; if (stopper) { stopper(); stopper = null; } stopAll(); droneStop(); }
+export function pause() { if (stopper) stopper(); stopAll(); droneStop(); }
 
 // ================= الدوزان =================
 export function renderTuner(app) {
@@ -80,10 +82,12 @@ export function renderRhythm(app) {
   const tapBtn = h('button', { class: 'btn' }, 'انقر للسرعة');
   const bpmSl = slider('السرعة', 30, 240, 1, st.bpm, v => { st.bpm = v; }, v => `${v} BPM`);
   tapBtn.addEventListener('click', () => {
-    const t = performance.now(); tapTimes.push(t); if (tapTimes.length > 5) tapTimes.shift();
+    const t = performance.now();
+    if (tapTimes.length && t - tapTimes[tapTimes.length - 1] > 2000) tapTimes.length = 0;
+    tapTimes.push(t); if (tapTimes.length > 5) tapTimes.shift();
     if (tapTimes.length >= 2) {
       const avg = (tapTimes[tapTimes.length - 1] - tapTimes[0]) / (tapTimes.length - 1);
-      st.bpm = Math.round(60000 / avg); bpmSl.querySelector('input').value = st.bpm; bpmSl.querySelector('output').textContent = `${st.bpm} BPM`;
+      st.bpm = Math.max(30, Math.min(240, Math.round(60000 / avg))); bpmSl.querySelector('input').value = st.bpm; bpmSl.querySelector('output').textContent = `${st.bpm} BPM`;
     }
   });
   app.append(card(null, sel, strip, desc, bpmSl, h('div', { class: 'row', style: { marginBottom: '10px' } }, tapBtn, toggle('أضف نقرة المترونوم', false, v => { st.metro = v; })), btn),
@@ -148,6 +152,7 @@ export function renderEar(app) {
     modes.forEach(([k, l]) => modeSeg.append(h('button', { class: st.mode === k ? 'on' : '', onclick: () => { st.mode = k; st.right = 0; st.total = 0; drawModes(); newQ(); } }, l)));
   }
   const player = new Player(null, { metronome: false, countIn: false });
+  const gen = pageGen;
   stopper = () => player.stop();
 
   function newQ() {
@@ -199,14 +204,14 @@ export function renderEar(app) {
         if (o === st.answer) { st.right++; b.style.borderColor = 'var(--good)'; result.textContent = 'صحيح ✓'; }
         else { b.style.borderColor = 'var(--bad)'; result.textContent = `الإجابة: ${st.answer}`; }
         score.textContent = `${st.right} / ${st.total}`;
-        setTimeout(newQ, 1300);
+        setTimeout(() => { if (gen === pageGen) newQ(); }, 1300);
       });
       grid.append(b);
     });
     const lvl = h('div', { class: 'seg' }, [[1, 'سهل'], [2, 'متقدم']].map(([k, l]) => h('button', { class: st.level === k ? 'on' : '', onclick: () => { st.level = k; newQ(); } }, l)));
     body.append(h('div', { class: 'row between' }, lvl, score), fb, play, grid, result);
     score.textContent = `${st.right} / ${st.total}`;
-    setTimeout(() => st.playFn(), 300);
+    setTimeout(() => { if (gen === pageGen) st.playFn(); }, 300);
   }
   drawModes();
   newQ();
@@ -232,7 +237,7 @@ export function renderSongs(app) {
       keyOut.append(h('div', { class: i === 0 ? 'card hl' : 'card' },
         h('b', {}, `${pcName(r.pc)} ${r.mode === 'major' ? 'الكبير' : 'الصغير'}`), h('span', { class: 'muted' }, i === 0 ? '  (الأرجح)' : ''),
         h('div', { class: 'ltr', style: { marginTop: '4px' } }, romans.join(' – ')),
-        h('div', { class: 'muted ltr', style: { fontSize: '.82rem' } }, 'Diatonic: ' + dia.map(d => chordName(d.pc, d.type, 'latin')).join(' '))));
+        h('div', { class: 'muted ltr', style: { fontSize: '.82rem' } }, 'Diatonic: ' + dia.map(d => chordNameInKey(d.pc, d.type, r.pc, r.mode)).join(' '))));
     });
   });
   app.append(card('كاشف المفتاح من الكوردات', h('p', { class: 'muted', style: { fontSize: '.85rem' } }, 'اكتب كوردات الأغنية، وسأقترح المفتاح والأرقام الرومانية.'), keyIn, h('div', { class: 'row', style: { marginTop: '8px' } }, keyBtn), keyOut));
@@ -259,7 +264,7 @@ export function renderSongs(app) {
     capoOut.append(h('table', { class: 't' }, h('tr', {}, h('th', {}, 'أشكال'), h('th', {}, 'الكابو على الفرت'), h('th', {}, 'النتيجة')),
       rows.map(([n, f, m]) => h('tr', {}, h('td', { class: 'ltr' }, n), h('td', {}, f === 0 ? 'بدون كابو' : f), h('td', { class: 'ltr' }, NOTE_LATIN[st.target] + (m ? 'm' : ''))))));
   }
-  app.append(card('حاسبة الكابو', h('div', { class: 'row' }, h('span', {}, 'المفتاح المطلوب:'), select(ROOTS.map(r => ({ value: r.pc, label: `${r.ar} (${r.latin})` })), st.target, v => { st.target = +v; capo(); })), capoOut));
+  app.append(card('حاسبة الكابو', h('div', { class: 'row' }, h('span', {}, 'المفتاح المطلوب:'), select(ROOTS.map(r => ({ value: r.pc, label: `${r.ar} (\u2066${r.latin}\u2069)` })), st.target, v => { st.target = +v; capo(); })), capoOut));
   capo();
 
   // كوردات أي مفتاح
@@ -268,7 +273,7 @@ export function renderSongs(app) {
   function dia() {
     dOut.innerHTML = '';
     const ch = diatonicChords(ks.pc, ks.mode, ks.sev && ks.mode === 'major');
-    dOut.append(h('table', { class: 't' }, h('tr', {}, ch.map(c => h('th', { class: 'ltr' }, c.roman))), h('tr', {}, ch.map(c => h('td', { class: 'ltr' }, chordName(c.pc, c.type, 'latin'))))));
+    dOut.append(h('table', { class: 't' }, h('tr', {}, ch.map(c => h('th', { class: 'ltr' }, c.roman))), h('tr', {}, ch.map(c => h('td', { class: 'ltr' }, chordNameInKey(c.pc, c.type, ks.pc, ks.mode))))));
   }
   app.append(card('كوردات المفتاح (أرقام الدرجات)', h('div', { class: 'row' },
     select(ROOTS.map(r => ({ value: r.pc, label: r.ar })), ks.pc, v => { ks.pc = +v; dia(); }),

@@ -58,7 +58,11 @@ export function windowPattern(scaleId, rootPc, from, to, { rootQuarter = false, 
       if (!set.has(q) || q <= last) continue;
       // تجنب ربع التون على الفرت 0 (لا يمكن البِند على وتر مفتوح بسهولة)
       const p = pos(s, q);
-      if (p.f < 0 || (p.f === 0 && p.qt)) continue;
+      if (p.f < 0) continue;
+      if (p.f === 0 && p.qt) { // ربع تون فوق وتر مفتوح: ضعه على الوتر الأغلظ إن أمكن
+        if (s > 0) { const alt = pos(s - 1, q); if (alt.f <= to + 1) { out.push({ ...alt, deg: set.get(q) }); last = q; } }
+        continue;
+      }
       // إن كانت النوتة أسهل على الوتر التالي (أبعد من 4 فرتات عن البداية) اتركها له
       if (s < 5 && p.f - from > 4 && openQ(s + 1) + from * 2 <= q) continue;
       out.push({ ...p, deg: set.get(q) });
@@ -164,13 +168,13 @@ function chordStrumEvents(voicing, beats = 4, pattern = 'quarters', startT = 0, 
   return ev;
 }
 
-function arpEvents(voicing, order = 'up', sub = 2, startT = 0, beats = 4) {
+function arpEvents(voicing, order = 'up', sub = 2, startT = 0, beats = 4, chordLabel = '') {
   let ps = chordPositions(voicing);
   if (order === 'down') ps = ps.reverse();
   if (order === 'updown') ps = [...ps, ...[...ps].reverse().slice(1, -1)];
   const ev = [];
   const total = Math.round(beats * sub);
-  for (let i = 0; i < total; i++) ev.push({ ...ps[i % ps.length], t: startT + i / sub, d: 1 / sub });
+  for (let i = 0; i < total; i++) ev.push({ ...ps[i % ps.length], t: startT + i / sub, d: 1 / sub, voicing, label: chordLabel });
   return ev;
 }
 
@@ -226,7 +230,7 @@ export function buildExercise(spec = {}) {
       const v = spec.voicing || pickVoicing(c.pc, c.type, spec.prefer || 'open');
       if (!v) continue;
       const lbl = c.raw || '';
-      if (t === 'arp') events.push(...arpEvents(v, spec.order || 'up', spec.sub || 2, T, beats));
+      if (t === 'arp') events.push(...arpEvents(v, spec.order || 'up', spec.sub || 2, T, beats, lbl));
       else events.push(...chordStrumEvents(v, beats, spec.pattern || 'quarters', T, lbl));
       T += beats;
       if (chords.length === 1) extraDots = chordPositions(v).map(p => ({ ...p, kind: 'chord', label: p.finger || (p.f === 0 ? 'م' : '') }));
@@ -239,10 +243,10 @@ export function buildExercise(spec = {}) {
     const q0 = (OPEN_STRINGS[s] + f) * 2;
     events = [
       { s, f, qt: 0, q: q0 + amount, t: 0, d: 2, bendFrom: q0, label: '↑' },
-      { s, f: f + amount / 2, qt: amount % 2, q: q0 + amount, t: 2.5, d: 1.5, label: 'هدف' },
+      { s, f: f + Math.floor(amount / 2), qt: amount % 2, q: q0 + amount, t: 2.5, d: 1.5, label: 'هدف' },
     ];
     const dots = [{ s, f, qt: 0, q: q0, kind: 'root', label: noteName(q0) }];
-    if (amount % 2 === 0) dots.push({ s, f: f + amount / 2, qt: 0, q: q0 + amount, kind: 'ghost', label: noteName(q0 + amount) });
+    dots.push({ s, f: f + Math.floor(amount / 2), qt: amount % 2, q: q0 + amount, kind: 'ghost', label: noteName(q0 + amount) });
     return finalize({ events, dots, spec, beats: 4 });
   } else if (t === 'all') {
     // كل المواضع للعرض، والعزف = الصناديق متتالية صعوداً
@@ -290,7 +294,7 @@ function finalize({ events, dots, spec, beats }) {
   let from = spec.view?.[0];
   let to = spec.view?.[1];
   if (from == null) {
-    const mn = Math.min(...frets, 99), mx = Math.max(...frets, 0);
+    const mn = frets.length ? Math.min(...frets) : 0, mx = frets.length ? Math.max(...frets) : 0;
     if (spec.full) { from = 0; to = Math.max(15, mx + 1); }
     else if (mn <= 3) { from = 0; to = Math.max(mx + 1, 7); }
     else { from = mn - 2; to = Math.min(22, Math.max(mx + 1, from + 7)); }

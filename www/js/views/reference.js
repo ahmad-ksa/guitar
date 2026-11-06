@@ -47,17 +47,19 @@ export function renderReference(app, sub) {
 function circleSvg() {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', '-160 -160 320 320'); svg.setAttribute('class', 'circle-svg'); svg.style.width = '100%'; svg.style.maxWidth = '380px'; svg.style.display = 'block'; svg.style.margin = '0 auto';
+  svg.setAttribute('viewBox', '-160 -160 320 320'); svg.setAttribute('direction', 'ltr'); svg.style.direction = 'ltr'; svg.setAttribute('class', 'circle-svg'); svg.style.width = '100%'; svg.style.maxWidth = '380px'; svg.style.display = 'block'; svg.style.margin = '0 auto';
   const add = (tag, a, txt) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; };
   add('circle', { r: 150, fill: 'var(--card2)', stroke: 'var(--line)' });
   add('circle', { r: 98, fill: 'var(--bg2)', stroke: 'var(--line)' });
-  const acc = ['', '1#', '2#', '3#', '4#', '5#', '6#/6♭', '5♭', '4♭', '3♭', '2♭', '1♭'];
+  const acc = ['', '1#', '2#', '3#', '4#', '5#', '6# / 6♭', '5♭', '4♭', '3♭', '2♭', '1♭'];
+  const majors = ['C', 'G', 'D', 'A', 'E', 'B', 'F#/G♭', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+  const minors = ['Am', 'Em', 'Bm', 'F#m', 'C#m', 'G#m', 'D#m', 'B♭m', 'Fm', 'Cm', 'Gm', 'Dm'];
   CIRCLE_OF_FIFTHS.forEach((pc, i) => {
     const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
     const x = Math.cos(a), y = Math.sin(a);
-    add('text', { x: x * 124, y: y * 124 + 5, 'text-anchor': 'middle', fill: i === 0 ? 'var(--accent)' : 'var(--text)', 'font-size': 15, 'font-weight': 700 }, NOTE_LATIN[pc]);
+    add('text', { x: x * 124, y: y * 124 + 5, 'text-anchor': 'middle', fill: i === 0 ? 'var(--accent)' : 'var(--text)', 'font-size': 15, 'font-weight': 700 }, majors[i]);
     add('text', { x: x * 124, y: y * 124 + 19, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 8.5 }, acc[i]);
-    add('text', { x: x * 76, y: y * 76 + 4, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 11 }, NOTE_LATIN[(pc + 9) % 12] + 'm');
+    add('text', { x: x * 76, y: y * 76 + 4, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 11 }, minors[i]);
   });
   return svg;
 }
@@ -82,12 +84,18 @@ export function renderSettings(app) {
     toggle('المترونوم في التمارين افتراضياً', s.metronome, v => store.setSetting('metronome', v))));
   app.append(card('المنهج',
     toggle('فتح كل المستويات (لأصحاب الخبرة)', s.unlockAll, v => store.setSetting('unlockAll', v))));
-  const fileIn = h('input', { type: 'file', accept: '.json', style: { display: 'none' } });
-  fileIn.addEventListener('change', async () => { try { store.importData(await fileIn.files[0].text()); toast('تمت الاستعادة'); location.reload(); } catch (e) { toast('ملف غير صالح'); } });
+  const dataBox = h('textarea', { placeholder: 'الصق هنا نص النسخة الاحتياطية ثم اضغط «استعادة»' });
+  const copyText = async txt => {
+    try { await navigator.clipboard.writeText(txt); return true; } catch (e) {
+      dataBox.value = txt; dataBox.select(); try { return document.execCommand('copy'); } catch (e2) { return false; }
+    }
+  };
   app.append(card('البيانات',
-    h('div', { class: 'row' },
-      h('button', { class: 'btn small', onclick: () => { const b = new Blob([store.exportData()], { type: 'application/json' }); const a = h('a', { href: URL.createObjectURL(b), download: 'guitar-progress.json' }); document.body.append(a); a.click(); a.remove(); } }, 'نسخ احتياطي'),
-      h('button', { class: 'btn small', onclick: () => fileIn.click() }, 'استعادة'),
-      h('button', { class: 'btn small', onclick: () => { if (confirm('حذف كل التقدم؟')) { store.resetAll(); location.reload(); } } }, 'مسح التقدم')), fileIn));
+    h('p', { class: 'muted', style: { fontSize: '.85rem' } }, 'النسخ الاحتياطي ينسخ تقدمك كنص. احفظه في الملاحظات أو أرسله لنفسك، ثم الصقه هنا للاستعادة على أي جهاز.'),
+    h('div', { class: 'row', style: { marginBottom: '8px' } },
+      h('button', { class: 'btn small', onclick: async () => { const ok = await copyText(store.exportData()); toast(ok ? 'نُسخ تقدمك. الصقه في مكان آمن.' : 'انسخ النص من المربع يدوياً.'); } }, 'نسخ احتياطي'),
+      h('button', { class: 'btn small', onclick: () => { try { store.importData(dataBox.value.trim()); toast('تمت الاستعادة'); location.reload(); } catch (e) { toast('النص غير صالح'); } } }, 'استعادة'),
+      h('button', { class: 'btn small', onclick: () => { if (confirm('حذف كل التقدم؟')) { store.resetAll(); location.reload(); } } }, 'مسح التقدم')),
+    dataBox));
   app.append(card('عن التطبيق', h('p', { class: 'muted' }, 'أكاديمية الجيتار — منهج لجنة من عازف محترف ومايسترو ومدرس موسيقى، برمجة كاملة تعمل دون إنترنت. صوت الجيتار مولّد رقمياً بدقة ربع التون.')));
 }

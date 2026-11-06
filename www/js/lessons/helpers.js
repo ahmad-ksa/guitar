@@ -113,6 +113,13 @@ function shuffleFixed(arr, seed) {
   return a;
 }
 
+// صعود بالسلم الصاعد ونزول بالنازل (للمقامات التي تتغير نزولاً)
+function ascDescEx(id, r, win, rq) {
+  const up = phrase(id, r, win[0], win[1], [0, 1, 2, 3, 4, 5, 6, 7].map(d => [d, 0.5]), { rootQuarter: rq });
+  const down = phrase(id, r, win[0], win[1], [6, 5, 4, 3, 2, 1, 0].map(d => [d, d === 0 ? 1.5 : 0.5]), { rootQuarter: rq, dir: 'desc' });
+  return { type: 'notes', notes: [...up.notes, ...down.notes], scale: id, root: r, label: 'note', bpm: 80 };
+}
+
 // ======== درس مقام ========
 // win: نافذة الفرتات التي فيها القرار مع نوتات تحته
 export function maqamLesson(id, lessonId, win, extra = {}) {
@@ -133,7 +140,7 @@ export function maqamLesson(id, lessonId, win, extra = {}) {
     { say: `${m.name}. ${m.desc}`, ex: { ...baseEx, type: 'window', label: 'note', dir: 'up', sub: 2, bpm: 70 } },
     { say: `يبدأ المقام بـ${j1.name} على القرار ${rootName}: ${j1.desc}`, ex: phrase(id, r, win[0], win[1], [...Array(j1len + 1)].map((_, i) => [i, 1]).concat([[j1len - 1, 1], [0, 2]]), { rootQuarter: rq }) },
     { say: `ثم ${j2.name} يبدأ من الغماز ${ghName}. الغماز هو النوتة التي يرتكز عليها اللحن في منتصف السير.`, ex: phrase(id, r, win[0], win[1], [[gIdx, 1], [gIdx + 1, 1], [gIdx + 2, 1], [Math.min(7, gIdx + 3), 1], [gIdx, 2]], { rootQuarter: rq }) },
-    { say: `المقام كاملاً صعوداً: ${asc}.` + (desc ? ` ونزولاً يتغير: ${desc}.` : ''), ex: { ...baseEx, type: 'window', label: 'degree', dir: 'updown', sub: 2, bpm: 80 } },
+    { say: `المقام كاملاً صعوداً: ${asc}.` + (desc ? ` ونزولاً يتغير: ${desc}.` : ''), ex: m.dsc ? ascDescEx(id, r, win, rq) : { ...baseEx, type: 'window', label: 'degree', dir: 'updown', sub: 2, bpm: 80 } },
     { say: 'جملة سير قصيرة: صعود إلى الغماز، استقرار، ثم نزول هادئ إلى القرار. استمع للقفلة في النهاية.', ex: phrase(id, r, win[0], win[1], [[0, 1], [1, 0.5], [2, 0.5], [gIdx, 2], [gIdx + 1, 0.5], [gIdx, 0.5], [gIdx - 1, 1], [2, 1], [1, 1], [0, 3]], { rootQuarter: rq }), drone: true },
   ];
   if (q) steps.splice(1, 0, {

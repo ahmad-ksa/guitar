@@ -191,8 +191,8 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: .88rem
 .strings-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
 
 /* ===== الإيقاع ===== */
-.beats { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 14px 0; direction: ltr; }
-.beat { width: 46px; height: 56px; border-radius: 10px; background: var(--card2); border: 1px solid var(--line); display: grid; place-items: center; font-weight: 800; font-size: 1rem; cursor: pointer; }
+.beats { display: flex; gap: 4px; flex-wrap: nowrap; justify-content: center; margin: 14px 0; direction: ltr; }
+.beat { flex: 1 1 0; min-width: 0; max-width: 46px; height: 52px; font-size: .78rem !important; border-radius: 10px; background: var(--card2); border: 1px solid var(--line); display: grid; place-items: center; font-weight: 800; font-size: 1rem; cursor: pointer; }
 .beat.D { background: var(--accent2); color: #fff; }
 .beat.T { background: var(--chord); color: #0b1a10; }
 .beat.k { background: color-mix(in srgb, var(--chord) 45%, var(--card2)); }

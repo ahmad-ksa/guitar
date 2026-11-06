@@ -65,8 +65,9 @@ export class Player {
     return new Promise(resolve => {
       this.timers.push(setTimeout(() => {
         if (!this.playing) return resolve(false);
+        this._resolve = null;
         droneStop();
-        if (o.loop) { resolve(this.play(ex, o.nextBpm ? o.nextBpm(bpm) : bpm, { ...opts, countIn: false })); return; }
+        if (o.loop) { this._resolve = null; this.play(ex, o.nextBpm ? o.nextBpm(bpm) : bpm, { ...opts, countIn: false }).then(resolve); return; }
         this.playing = false;
         this.onEnd && this.onEnd();
         resolve(true);

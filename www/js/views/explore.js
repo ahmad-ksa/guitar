@@ -2,7 +2,7 @@
 import { h, select, slider, toggle, card } from '../ui.js';
 import { Fretboard, chordDiagram, voicingFreqs } from '../fretboard.js';
 import { allPositions, windowPattern, npsPattern, labelFor, assignFingers } from '../exercises.js';
-import { SCALES, MAQAMAT, ROOTS, getScale, scaleOffsets, CHORD_TYPES, chordVoicings, chordName, chordNotes, pcName, noteName, rootQ, diatonicChords, spelledName } from '../theory.js';
+import { SCALES, MAQAMAT, ROOTS, getScale, scaleOffsets, CHORD_TYPES, chordVoicings, chordName, chordNameInKey, chordNotes, pcName, noteName, rootQ, diatonicChords, spelledName } from '../theory.js';
 import { Player } from '../player.js';
 import { strum, pluck, droneStart, droneStop } from '../audio.js';
 import { freqOfQ } from '../theory.js';
@@ -15,6 +15,9 @@ export function cleanup() { if (player) player.stop(); droneStop(); }
 export function renderExplore(app, params = {}) {
   cleanup();
   const st = { kind: params.kind || 'scale', id: params.id || 'major', root: params.root != null ? +params.root : 0, label: store.settings().label || 'note', view: 'all', box: 0, bpm: 90, drone: false };
+  if (st.kind === 'maqam' && !MAQAMAT[st.id]) st.id = 'bayati';
+  if (st.kind === 'scale' && !SCALES[st.id]) st.id = 'major';
+  if (st.kind !== 'scale' && st.kind !== 'maqam') { st.kind = 'scale'; st.id = 'major'; }
   if (MAQAMAT[st.id]) { st.kind = 'maqam'; if (params.root == null) st.root = MAQAMAT[st.id].root; }
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'مستكشف السلالم والمقامات')));
   const controls = card(null);
@@ -75,7 +78,7 @@ export function renderExplore(app, params = {}) {
       const uniq = sorted.filter((p, i) => i === 0 || p.q !== sorted[i - 1].q);
       const up = st.view === 'all' ? (() => { const r = uniq.findIndex(p => p.deg === 0); return uniq.slice(Math.max(0, r), r + scaleOffsets(st.id).length + 1); })() : uniq;
       const evs = [...up, ...[...up].reverse().slice(1)].map((p, i) => ({ ...p, t: i / 2, d: 0.5 }));
-      await player.play({ events: evs, beats: evs.length / 2 + 1 }, st.bpm, { metronome: false, countIn: false, drone: st.drone ? rootQ(st.root, rq(), 38) : null });
+      await player.play({ events: evs, beats: evs.length / 2 + 1 }, st.bpm, { metronome: false, countIn: false, drone: st.drone ? rootQ(st.root, rq(), 36) : null });
     });
     boardHost.append(h('div', { class: 'row', style: { marginTop: '10px' } }, playBtn, h('button', { class: 'btn', onclick: () => player.stop() }, '■'),
       toggle('درون القرار', st.drone, v => { st.drone = v; }),
@@ -100,7 +103,7 @@ export function renderExplore(app, params = {}) {
     if (st.id === 'major' || st.id === 'minor') {
       const dia = diatonicChords(st.root, st.id === 'major' ? 'major' : 'minor');
       info.append(h('h3', { style: { marginTop: '12px' } }, 'كوردات السلم'),
-        h('div', { class: 'row' }, dia.map(c => h('button', { class: 'btn small', onclick: () => { const v = chordVoicings(c.pc, c.type)[0]; if (v) strum(voicingFreqs(v)); } }, h('span', { class: 'ltr' }, `${c.roman} ${chordName(c.pc, c.type, 'latin')}`)))));
+        h('div', { class: 'row' }, dia.map(c => h('button', { class: 'btn small', onclick: () => { const v = chordVoicings(c.pc, c.type)[0]; if (v) strum(voicingFreqs(v)); } }, h('span', { class: 'ltr' }, `${c.roman} ${chordNameInKey(c.pc, c.type, st.root, st.id === 'major' ? 'major' : 'minor')}`)))));
     }
   }
   draw();
@@ -116,8 +119,8 @@ export function renderChords(app, params = {}) {
   function draw() {
     ctl.innerHTML = '';
     ctl.append(h('div', { class: 'row' },
-      select(ROOTS.map(r => ({ value: r.pc, label: `${r.ar} (${r.latin})` })), st.root, v => { st.root = +v; draw(); }),
-      select(Object.entries(CHORD_TYPES).map(([k, v]) => ({ value: k, label: `${v.name} ${v.sym ? '(' + v.sym + ')' : ''}` })), st.type, v => { st.type = v; draw(); })));
+      select(ROOTS.map(r => ({ value: r.pc, label: `${r.ar} (\u2066${r.latin}\u2069)` })), st.root, v => { st.root = +v; draw(); }),
+      select(Object.entries(CHORD_TYPES).map(([k, v]) => ({ value: k, label: `${v.name} ${v.sym ? '(\u2066' + v.sym + '\u2069)' : ''}` })), st.type, v => { st.type = v; draw(); })));
     const notes = chordNotes(st.root, st.type);
     ctl.append(h('p', { style: { margin: '8px 0 0' } }, h('b', { class: 'ltr' }, chordName(st.root, st.type, 'latin')), ' = ', notes.map(n => pcName(n)).join('، '),
       h('span', { class: 'muted' }, `  (الفواصل: ${CHORD_TYPES[st.type].iv.join('، ')} نصف تون)`)));
