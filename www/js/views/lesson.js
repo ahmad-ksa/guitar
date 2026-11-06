@@ -163,7 +163,11 @@ export function renderLesson(app, id, isExam = false) {
     function go(i) {
       if (i < 0 || i >= steps.length) return;
       sess.playToken++; player.stop(); speech.stop(); sub.classList.remove('speaking');
-      showStep(i);
+      // ثبّت موضع أزرار التنقل على الشاشة حتى لا تقفز الصفحة عند تغيّر طول المحتوى
+      const before = btnNext.getBoundingClientRect().top;
+      showStep(i, false);
+      const after = btnNext.getBoundingClientRect().top;
+      if (Math.abs(after - before) > 1) window.scrollBy({ top: after - before, behavior: 'instant' });
     }
 
     async function playStep(i, auto = false) {

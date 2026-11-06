@@ -68,11 +68,13 @@ export function renderSettings(app) {
   const s = store.settings();
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'الإعدادات')));
   const voiceInfo = h('p', { class: 'muted', style: { fontSize: '.85rem' } });
-  speech.hasArabicVoice().then(ok => { voiceInfo.textContent = ok ? 'صوت النطق العربي متوفر ✓' : 'لم أجد صوتاً عربياً في الجهاز. ثبّت «اللغة العربية» من إعدادات تحويل النص إلى كلام في أندرويد.'; });
+  const testLine = 'مرحباً بك في أكاديمية الجيتار. هذا اختبار للصوت العربي.';
+  setTimeout(() => { if (s.naturalVoice !== false && speech.hasRecorded(testLine)) voiceInfo.textContent = 'الصوت الطبيعي المسجّل مثبت ✓ (يعمل دون إنترنت)'; else speech.hasArabicVoice().then(ok => { voiceInfo.textContent = ok ? 'يُستخدم صوت النطق العربي في الجهاز ✓' : 'لم أجد صوتاً عربياً في الجهاز. ثبّت «اللغة العربية» من إعدادات تحويل النص إلى كلام في أندرويد.'; }); }, 400);
   app.append(card('الشرح الصوتي',
     toggle('تشغيل الشرح الصوتي بالعربي', s.speech, v => { store.setSetting('speech', v); speech.setEnabled(v); }),
+    h('div', { style: { marginTop: '6px' } }, toggle('الصوت الطبيعي (صوت بشري مسجّل)', s.naturalVoice !== false, v => { store.setSetting('naturalVoice', v); speech.setRecorded(v); })),
     slider('سرعة الكلام', 0.6, 1.5, 0.05, s.speechRate, v => { store.setSetting('speechRate', v); speech.setRate(v); }, v => `${Math.round(v * 100)}%`),
-    h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => speech.speak('مرحباً بك في أكاديمية الجيتار. هذا اختبار للصوت العربي.') }, 'اختبر الصوت'),
+    h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => speech.speak(testLine) }, 'اختبر الصوت'),
       h('button', { class: 'btn small', onclick: () => speech.openInstall() }, 'تثبيت أصوات النطق')),
     voiceInfo));
   app.append(card('العرض',

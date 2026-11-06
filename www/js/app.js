@@ -18,6 +18,7 @@ const s = store.settings();
 setNotation(s.notation);
 speech.setRate(s.speechRate);
 speech.setEnabled(s.speech);
+speech.setRecorded(s.naturalVoice !== false);
 if (s.theme === 'light') document.body.classList.add('light');
 
 const NAV = [['#/', 'home', 'الرئيسية'], ['#/levels', 'book', 'الدروس'], ['#/tools', 'tools', 'الأدوات'], ['#/reference', 'ref', 'المرجع'], ['#/settings', 'gear', 'الإعدادات']];

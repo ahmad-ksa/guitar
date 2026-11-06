@@ -6,7 +6,8 @@
   "scripts": {
     "serve": "python3 -m http.server 8080 --directory www",
     "android:add": "cap add android",
-    "android:sync": "cap sync android"
+    "android:sync": "cap sync android",
+    "voice": "node tools/voice-list.mjs voice-list.json && python3 tools/gen_voice.py voice-list.json www/audio/voice"
   },
   "dependencies": {
     "@capacitor-community/text-to-speech": "^8.0.2",
@@ -17,5 +18,6 @@
   "devDependencies": {
     "@capacitor/assets": "^4.0.0",
     "@capacitor/cli": "^8.6.0"
-  }
+  },
+  "type": "module"
 }

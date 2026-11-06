@@ -1,5 +1,6 @@
 // الشرح الصوتي العربي: محرك النطق في أندرويد (عبر Capacitor) مع بديل المتصفح
 import { Capacitor, registerPlugin } from './vendor/capacitor-core.js';
+import { cleanForSpeech, voiceKey } from './voicekey.js';
 
 let rate = 1.0;
 let enabled = true;
@@ -33,21 +34,33 @@ if ('speechSynthesis' in window) {
   speechSynthesis.onvoiceschanged = pickWebVoice;
 }
 
-// تنظيف النص للنطق: إزالة رموز لا تُقرأ جيداً
-function clean(text) {
-  return text
-    .replace(/\s*\([A-Za-z0-9#♭½°+\-–\/ ,]+\)/g, '')
-    .replace(/½♭/g, ' نصف بيمول')
-    .replace(/♭/g, ' بيمول')
-    .replace(/#/g, ' دييز')
-    .replace(/[*_`]/g, '')
-    .replace(/→|←/g, ' ثم ')
-    .replace(/\bBPM\b/gi, 'نبضة في الدقيقة');
+const clean = cleanForSpeech;
+
+// ===== الأصوات الطبيعية المسجلة مسبقاً (صوت عصبي) =====
+let voiceIndex = null;
+const voiceReady = fetch('audio/voice/index.json').then(r => (r.ok ? r.json() : [])).then(l => { voiceIndex = new Set(l); }).catch(() => { voiceIndex = new Set(); });
+let currentAudio = null;
+let useRecorded = true;
+export function setRecorded(v) { useRecorded = v; }
+export function hasRecorded(text) { return !!(voiceIndex && voiceIndex.has(voiceKey(text))); }
+
+function playRecorded(id, cancelled) {
+  return new Promise(resolve => {
+    const a = new Audio(`audio/voice/${id}.mp3`);
+    currentAudio = a;
+    a.playbackRate = rate;
+    try { a.preservesPitch = true; } catch (e) {}
+    a.onended = () => resolve('done');
+    a.onerror = () => resolve('error');
+    a.play().catch(() => resolve('error'));
+    cancelled.then(() => { a.pause(); resolve('cancel'); });
+  });
 }
 
 // هل يوجد محرك نطق يعمل؟ (يُستخدم لحساب مدة عرض النص في وضع المشاهدة)
 export function canSpeak() {
   if (!enabled) return false;
+  if (useRecorded && voiceIndex && voiceIndex.size) return true;
   if (initNative()) return true;
   return 'speechSynthesis' in window && !!(webVoice || pickWebVoice());
 }
@@ -59,6 +72,17 @@ export async function speak(text) {
   if (!enabled || !text) return false;
   const t = clean(text);
   const cancelled = new Promise(r => { cancelCurrent = () => r('cancel'); });
+  if (useRecorded) {
+    if (!voiceIndex) await Promise.race([voiceReady, cancelled]);
+    if (token !== speakingToken) return false;
+    const id = voiceKey(text);
+    if (voiceIndex && voiceIndex.has(id)) {
+      const r = await playRecorded(id, cancelled);
+      if (r === 'done') return token === speakingToken;
+      if (r === 'cancel' || token !== speakingToken) return false;
+      // خطأ في التشغيل: انتقل لمحرك النطق
+    }
+  }
   const tts = initNative();
   if (tts) {
     const attempt = lang => tts.speak({ text: t, lang, rate, pitch: 1.0, volume: 1.0, category: 'playback', queueStrategy: 0 });
@@ -96,6 +120,7 @@ export async function speak(text) {
 export async function stop() {
   speakingToken++;
   if (cancelCurrent) { cancelCurrent(); cancelCurrent = null; }
+  if (currentAudio) { try { currentAudio.pause(); } catch (e) {} currentAudio = null; }
   const tts = initNative();
   if (tts) { try { await tts.stop(); } catch (e) {} }
   if ('speechSynthesis' in window) { try { speechSynthesis.cancel(); } catch (e) {} }
