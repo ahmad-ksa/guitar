@@ -5,6 +5,7 @@ import { MAQAMAT, RHYTHMS, OPEN_STRINGS, spelledName, stepsToOffsets, freqOfQ, R
 import { Fretboard } from '../fretboard.js';
 import { allPositions } from '../exercises.js';
 import { Player } from '../player.js';
+import { activity } from '../screen.js';
 
 const DEG = ['القرار', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة'];
 let active = []; // دوال إيقاف
@@ -99,6 +100,7 @@ export function playAlong(host, ctx) {
       needle.style.left = `${50 + Math.max(-50, Math.min(50, best.d))}%`;
       meter.classList.toggle('ok', Math.abs(best.d) < 12);
       stats.total++; if (inScale) stats.inS++;
+      if (stats.total % 120 === 0) activity();
       if (inScale) stats.hits[best.c] = (stats.hits[best.c] || 0) + 1;
       degRow.querySelectorAll('.pill').forEach(p => p.classList.toggle('ok', !!stats.hits[+p.dataset.c]));
       if (stats.total % 10 === 0) stat.innerHTML = '', stat.append(h('span', {}, `داخل المقام: ${Math.round(100 * stats.inS / stats.total)}%`), h('span', { class: 'muted' }, `درجات عزفتها: ${Object.keys(stats.hits).length}/${stepsToOffsets(MAQAMAT[id].asc).length}`));

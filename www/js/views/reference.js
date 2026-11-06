@@ -6,6 +6,7 @@ import { noteList, stepsText } from '../lessons/helpers.js';
 import * as store from '../store.js';
 import * as speech from '../speech.js';
 import { setVolume } from '../audio.js';
+import { setScreenTimeout, SCREEN_OPTIONS } from '../screen.js';
 
 export function renderReference(app, sub) {
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'المرجع')));
@@ -67,6 +68,9 @@ function circleSvg() {
 export function renderSettings(app) {
   const s = store.settings();
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'الإعدادات')));
+  app.append(card('مدة بقاء الشاشة مضاءة',
+    h('p', { class: 'muted', style: { fontSize: '.85rem', marginTop: 0 } }, 'تبقى الشاشة مضاءة أثناء التمرين حتى تمر هذه المدة دون أن تلمسها. العزف والشرح يُحسبان نشاطاً، فلا تنطفئ الشاشة أثناء تشغيل الدرس.'),
+    select(SCREEN_OPTIONS, s.screenMinutes ?? 15, v => { store.setSetting('screenMinutes', +v); setScreenTimeout(+v); toast('تم الحفظ'); }, { style: { width: '100%' } })));
   const voiceInfo = h('p', { class: 'muted', style: { fontSize: '.85rem' } });
   const testLine = 'مرحباً بك في أكاديمية الجيتار. هذا اختبار للصوت العربي.';
   setTimeout(() => { if (s.naturalVoice !== false && speech.hasRecorded(testLine)) voiceInfo.textContent = 'الصوت الطبيعي المسجّل مثبت ✓ (يعمل دون إنترنت)'; else speech.hasArabicVoice().then(ok => { voiceInfo.textContent = ok ? 'يُستخدم صوت النطق العربي في الجهاز ✓' : 'لم أجد صوتاً عربياً في الجهاز. ثبّت «اللغة العربية» من إعدادات تحويل النص إلى كلام في أندرويد.'; }); }, 400);

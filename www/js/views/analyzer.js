@@ -5,6 +5,7 @@ import { MAQAMAT, AJNAS, MAQAM_CHARACTER, spelledName, stepsToOffsets } from '..
 import { SR, tonicFromQ, trackPitch, analyzeFrames, FRAME, HOP } from '../maqam-analyzer.js';
 import { ALL } from '../lessons/index.js';
 import * as store from '../store.js';
+import { activity } from '../screen.js';
 import { playAlong, melodyOnFretboard, accompaniment, stopPracticeTools } from './practice-tools.js';
 
 let state = { worker: null, stream: null, proc: null, audio: null, url: null, live: null };
@@ -401,6 +402,7 @@ async function startLive(panel, status) {
 
   // تحليل المقام كل ثانية ونصف
   L.timer2 = setInterval(() => {
+    activity();
     if (L.frames.length < 200) return;
     const res = analyzeFrames(L.frames, { timeline: false });
     if (!res.ok) { sub.textContent = 'لم أسمع لحناً واضحاً بعد… قرّب الجوال من مصدر الصوت'; return; }

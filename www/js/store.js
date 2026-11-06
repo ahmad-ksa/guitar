@@ -2,7 +2,7 @@
 const KEY = 'guitar-academy-v1';
 
 const defaults = {
-  settings: { notation: 'ar', speech: true, naturalVoice: true, speechRate: 1.0, label: 'note', volume: 0.9, unlockAll: false, metronome: true, theme: 'dark' },
+  settings: { screenMinutes: 15, notation: 'ar', speech: true, naturalVoice: true, speechRate: 1.0, label: 'note', volume: 0.9, unlockAll: false, metronome: true, theme: 'dark' },
   progress: { done: {}, quiz: {}, bestBpm: {}, checks: {}, minutes: 0, days: {}, last: null, exams: {} },
   songs: [],
 };

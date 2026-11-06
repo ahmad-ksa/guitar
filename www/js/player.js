@@ -1,6 +1,7 @@
 // مشغل التمارين: يزامن صوت الجيتار مع إضاءة الزند والمترونوم
 import { getCtx, pluck, click, stopAll, drum, droneStart, droneStop } from './audio.js';
 import { freqOfQ } from './theory.js';
+import { activity } from './screen.js';
 
 export class Player {
   constructor(board, opts = {}) {
@@ -59,6 +60,7 @@ export class Player {
         if (e.kind === 'strum') e.chord.forEach(p => this.board?.flash(p, Math.min(0.5, e.d * spb)));
         else this.board?.flash(e, Math.max(0.18, e.d * spb * 0.9));
         this.onStep && this.onStep(i, e);
+        if (i % 16 === 0) activity();
       }, Math.max(0, delay)));
     });
     const endMs = (body + total * spb - c.currentTime) * 1000 + 250;

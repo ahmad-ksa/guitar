@@ -1,6 +1,7 @@
 // الشرح الصوتي العربي: محرك النطق في أندرويد (عبر Capacitor) مع بديل المتصفح
 import { Capacitor, registerPlugin } from './vendor/capacitor-core.js';
 import { cleanForSpeech, voiceKey } from './voicekey.js';
+import { activity } from './screen.js';
 
 let rate = 1.0;
 let enabled = true;
@@ -69,6 +70,7 @@ export function canSpeak() {
 export async function speak(text) {
   if (cancelCurrent) cancelCurrent();
   const token = ++speakingToken;
+  activity();
   if (!enabled || !text) return false;
   const t = clean(text);
   const cancelled = new Promise(r => { cancelCurrent = () => r('cancel'); });

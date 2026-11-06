@@ -11,6 +11,7 @@ import { renderExplore, renderChords, cleanup as cleanExplore } from './views/ex
 import { renderTuner, renderRhythm, renderEar, renderSongs, cleanup as cleanTools, pause as pauseTools } from './views/tools.js';
 import { renderReference, renderSettings } from './views/reference.js';
 import { renderAnalyzer, cleanup as cleanAnalyzer } from './views/analyzer.js';
+import { setScreenTimeout, activity } from './screen.js';
 
 const app = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -20,6 +21,8 @@ setNotation(s.notation);
 speech.setRate(s.speechRate);
 speech.setEnabled(s.speech);
 speech.setRecorded(s.naturalVoice !== false);
+setScreenTimeout(s.screenMinutes ?? 15);
+['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, activity, { passive: true }));
 if (s.theme === 'light') document.body.classList.add('light');
 
 const NAV = [['#/', 'home', 'الرئيسية'], ['#/levels', 'book', 'الدروس'], ['#/tools', 'tools', 'الأدوات'], ['#/reference', 'ref', 'المرجع'], ['#/settings', 'gear', 'الإعدادات']];
