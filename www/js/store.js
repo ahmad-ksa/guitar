@@ -4,6 +4,7 @@ const KEY = 'guitar-academy-v1';
 const defaults = {
   settings: { notation: 'ar', speech: true, naturalVoice: true, speechRate: 1.0, label: 'note', volume: 0.9, unlockAll: false, metronome: true, theme: 'dark' },
   progress: { done: {}, quiz: {}, bestBpm: {}, checks: {}, minutes: 0, days: {}, last: null, exams: {} },
+  songs: [],
 };
 
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -17,6 +18,7 @@ function load() {
     return {
       settings: { ...clone(defaults.settings), ...(s.settings || {}) },
       progress: { ...clone(defaults.progress), ...(s.progress || {}) },
+      songs: Array.isArray(s.songs) ? s.songs : [],
     };
   } catch (e) { return clone(defaults); }
 }
@@ -63,4 +65,10 @@ export function streak() {
 
 export function resetAll() { state = clone(defaults); save(); }
 export function exportData() { return JSON.stringify(state); }
-export function importData(json) { const s = JSON.parse(json); state = { settings: { ...clone(defaults.settings), ...s.settings }, progress: { ...clone(defaults.progress), ...s.progress } }; save(); }
+export function importData(json) { const s = JSON.parse(json); state = { settings: { ...clone(defaults.settings), ...s.settings }, progress: { ...clone(defaults.progress), ...s.progress }, songs: Array.isArray(s.songs) ? s.songs : [] }; save(); }
+
+// ===== دفتر الأغاني =====
+export function songs() { return state.songs || (state.songs = []); }
+export function addSong(entry) { songs().unshift({ id: Date.now().toString(36), date: new Date().toISOString().slice(0, 10), ...entry }); save(); }
+export function updateSong(id, patch) { const x = songs().find(s => s.id === id); if (x) { Object.assign(x, patch); save(); } }
+export function removeSong(id) { state.songs = songs().filter(s => s.id !== id); save(); }

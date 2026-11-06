@@ -255,6 +255,8 @@ export function analyzeFrames(frames, opts = {}) {
     evidence,
     timeline,
     notesCount: notes.length,
+    // نوتات اللحن (مصححة الدوزان) لتحويلها إلى تمرين
+    notes: notes.filter(n => n.dur >= 0.09).slice(0, 400).map(n => ({ t: +(n.start * hopSec).toFixed(3), c: +n.c.toFixed(1), d: +n.dur.toFixed(3) })),
     bpm: opts.bpm === false ? null : estimateBpm(frames),
   };
 }

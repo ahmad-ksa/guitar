@@ -4,10 +4,13 @@ import { getCtx, stopAll } from '../audio.js';
 import { MAQAMAT, AJNAS, MAQAM_CHARACTER, spelledName, stepsToOffsets } from '../theory.js';
 import { SR, tonicFromQ, trackPitch, analyzeFrames, FRAME, HOP } from '../maqam-analyzer.js';
 import { ALL } from '../lessons/index.js';
+import * as store from '../store.js';
+import { playAlong, melodyOnFretboard, accompaniment, stopPracticeTools } from './practice-tools.js';
 
 let state = { worker: null, stream: null, proc: null, audio: null, url: null, live: null };
 export function cleanup() {
   stopLive();
+  stopPracticeTools();
   if (state.worker) { state.worker.terminate(); state.worker = null; }
   stopRec();
   if (state.audio) { state.audio.pause(); state.audio = null; }
@@ -42,11 +45,15 @@ export function renderAnalyzer(app) {
   const recBtn = h('button', { class: 'btn' }, '🎙️ سجّل مقطعاً');
   const liveBtn = h('button', { class: 'btn' }, '📡 استمع مباشرة');
   const livePanel = h('div');
+  const playHost = h('div');
+  const notebook = h('div');
+  const soloBtn = h('button', { class: 'btn small' }, '🎸 اعزف معي على مقام أختاره');
+  soloBtn.addEventListener('click', () => { stopPracticeTools(); playAlong(playHost, { id: 'bayati', q: 4, tuning: 0 }); playHost.scrollIntoView({ behavior: 'smooth' }); });
   const pickBtn = h('button', { class: 'btn primary', onclick: () => fileIn.click() }, '📁 اختر ملف أغنية');
   const status = h('div', { class: 'muted', style: { fontSize: '.88rem', marginTop: '8px' } });
   const editor = h('div');
   const results = h('div');
-  app.append(card(null, h('div', { class: 'row' }, pickBtn, recBtn, liveBtn), fileIn, status), livePanel, editor, results,
+  app.append(card(null, h('div', { class: 'row' }, pickBtn, recBtn, liveBtn), h('div', { class: 'row', style: { marginTop: '8px' } }, soloBtn), fileIn, status), playHost, livePanel, editor, results, notebook,
     card('نصائح لأدق نتيجة', h('ul', { style: { margin: 0, paddingInlineStart: '18px' } },
       h('li', {}, 'اختر مقطعاً فيه غناء أو عزف منفرد واضح، 30 إلى 60 ثانية.'),
       h('li', {}, 'لأغنية على يوتيوب أو التلفزيون: شغّلها من جهاز آخر وقرّب الجوال، واستخدم «استمع مباشرة».'),
@@ -55,6 +62,20 @@ export function renderAnalyzer(app) {
       h('li', {}, 'النتيجة تقدير آلي: استخدم الدليل بالسنت وأذنك لتأكيدها.'))));
 
   let decoded = null; // AudioBuffer
+  let currentName = '';
+  drawNotebook();
+  function drawNotebook() {
+    notebook.innerHTML = '';
+    const list = store.songs();
+    if (!list.length) return;
+    notebook.append(card(`دفتر أغانيّ (${list.length})`, ...list.map(sng => {
+      const m = MAQAMAT[sng.id];
+      return h('div', { class: 'lesson-item' },
+        h('span', { class: 't', style: { cursor: 'pointer' }, onclick: () => { results.innerHTML = ''; editor.innerHTML = ''; showResults(sng.res, sng); } },
+          h('b', {}, sng.name || 'أغنية'), h('small', {}, `${m ? m.name : ''} من ${tonicName(sng.q)}${sng.bpm ? ' · ' + sng.bpm + ' BPM' : ''} · ${sng.date}${sng.note ? ' · ' + sng.note : ''}`)),
+        h('button', { class: 'btn small', onclick: () => { if (confirm('حذف من الدفتر؟')) { store.removeSong(sng.id); drawNotebook(); } } }, '✕'));
+    })));
+  }
   liveBtn.addEventListener('click', () => {
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; return; }
     editor.innerHTML = ''; results.innerHTML = '';
@@ -65,6 +86,7 @@ export function renderAnalyzer(app) {
     if (!f) return;
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; }
     livePanel.innerHTML = '';
+    currentName = f.name.replace(/\.[^.]+$/, '');
     status.textContent = `جارٍ قراءة ${f.name}…`;
     results.innerHTML = '';
     try {
@@ -121,6 +143,7 @@ export function renderAnalyzer(app) {
     const d = ab.getChannelData(0);
     let o = 0; for (const ch of chunks) { d.set(ch, o); o += ch.length; }
     decoded = ab;
+    currentName = 'تسجيل ' + new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
     state.url = null;
     status.textContent = `تسجيل · ${fmt(ab.duration)}`;
     showEditor();
@@ -197,8 +220,9 @@ export function renderAnalyzer(app) {
     btn.disabled = false;
   }
 
-  function showResults(res) {
+  function showResults(res, saved = null) {
     if (!res.ok) { results.append(card(null, h('p', {}, res.reason))); return; }
+    stopPracticeTools();
     const b = res.ranking[0];
     const m = MAQAMAT[b.id];
     const conf = Math.round(b.prob * 100);
@@ -251,7 +275,27 @@ export function renderAnalyzer(app) {
         h('div', { class: 'legend', style: { marginTop: '8px' } }, ids.map((k, i) => { const [id, q] = k.split(':'); return h('span', {}, h('i', { style: { background: colors[i % colors.length] } }), `${MAQAMAT[id].name} (${tonicName(+q)})`); })),
         h('p', { class: 'muted', style: { fontSize: '.8rem', marginTop: '6px' } }, 'كل خانة نافذة 15 ثانية. تغيّر اللون يعني تحويلاً مقامياً محتملاً.')));
     }
+    // حوّل وتدرّب
+    const toolHost = h('div');
+    const tbtn = (label, fn) => h('button', { class: 'btn', onclick: () => { stopPracticeTools(); fn(); toolHost.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, label);
+    const saveBtn = h('button', { class: 'btn' }, saved ? '✓ في دفتري' : '💾 احفظ في دفتري');
+    saveBtn.disabled = !!saved;
+    saveBtn.addEventListener('click', () => {
+      const name = prompt('اسم الأغنية:', currentName || '') ;
+      if (name == null) return;
+      const note = prompt('ملاحظة (اختياري):', '') || '';
+      store.addSong({ name: name || currentName || 'أغنية', note, id: b.id, q: b.q, bpm: res.bpm, res });
+      saveBtn.textContent = '✓ في دفتري'; saveBtn.disabled = true;
+      drawNotebook(); toast('حُفظت في دفتر أغانيك');
+    });
+    results.append(card('حوّل الأغنية إلى تدريب',
+      h('div', { class: 'row' },
+        tbtn('🎸 اعزف معي', () => playAlong(toolHost, { id: b.id, q: b.q, tuning: res.tuningOffset })),
+        res.notes && res.notes.length ? tbtn('🎼 اللحن على الزند', () => melodyOnFretboard(toolHost, res, b)) : null,
+        tbtn('🥁 رافقني', () => accompaniment(toolHost, b, res.bpm)),
+        saveBtn)), toolHost);
     results.append(h('p', { class: 'muted', style: { fontSize: '.78rem' } }, `تصحيح الدوزان: ${res.tuningOffset > 0 ? '+' : ''}${res.tuningOffset.toFixed(0)} سنت · نسبة اللحن الواضح: ${Math.round(res.voicedRatio * 100)}%`));
+    if (saved) results.prepend(h('div', { class: 'muted', style: { marginBottom: '6px' } }, `من دفترك: ${saved.name}`));
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
