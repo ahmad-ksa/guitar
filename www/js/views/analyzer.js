@@ -1,5 +1,6 @@
 // محلل المقام: ارفع أغنية أو سجّل مقطعاً، فيحدد التطبيق المقام والقرار مع الدليل
-import { h, card, slider, toast, icon } from '../ui.js';
+import { h, card, slider, toast, icon, askText } from '../ui.js';
+import { canonicalArtist, artistsList } from './songbook.js';
 import { getCtx, stopAll } from '../audio.js';
 import { MAQAMAT, AJNAS, MAQAM_CHARACTER, spelledName, stepsToOffsets } from '../theory.js';
 import { SR, tonicFromQ, trackPitch, analyzeFrames, FRAME, HOP } from '../maqam-analyzer.js';
@@ -34,10 +35,10 @@ function intervalWord(c, deg) {
     : { '-200': 'ناقصة', '-100': 'صغيرة', '-50': 'نصف بيمول', 0: 'كبيرة', 100: 'زائدة' }[d];
   return `${ORD[deg]} ${q || ''}`.trim();
 }
-function tonicName(q) { const t = tonicFromQ(q); return spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0), t.pc, 0); }
+export function tonicName(q) { const t = tonicFromQ(q); return spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0), t.pc, 0); }
 function lessonFor(id) { return ALL.find(l => l.title === MAQAMAT[id].name); }
 
-export function renderAnalyzer(app) {
+export function renderAnalyzer(app, openSongId = null) {
   cleanup();
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'محلل المقام')));
   app.append(h('p', { class: 'muted', style: { marginTop: '-6px' } }, 'ارفع أغنية أو جزءاً منها، أو سجّل من المايكروفون، وسيحدد التطبيق المقام والقرار ويشرح لك لماذا. التحليل يتم على جهازك دون إنترنت.'));
@@ -69,13 +70,10 @@ export function renderAnalyzer(app) {
     notebook.innerHTML = '';
     const list = store.songs();
     if (!list.length) return;
-    notebook.append(card(`دفتر أغانيّ (${list.length})`, ...list.map(sng => {
-      const m = MAQAMAT[sng.id];
-      return h('div', { class: 'lesson-item' },
-        h('span', { class: 't', style: { cursor: 'pointer' }, onclick: () => { results.innerHTML = ''; editor.innerHTML = ''; showResults(sng.res, sng); } },
-          h('b', {}, sng.name || 'أغنية'), h('small', {}, `${m ? m.name : ''} من ${tonicName(sng.q)}${sng.bpm ? ' · ' + sng.bpm + ' BPM' : ''} · ${sng.date}${sng.note ? ' · ' + sng.note : ''}`)),
-        h('button', { class: 'btn small', onclick: () => { if (confirm('حذف من الدفتر؟')) { store.removeSong(sng.id); drawNotebook(); } } }, '✕'));
-    })));
+    notebook.append(h('a', { class: 'card', href: '#/songbook', style: { display: 'flex', gap: '12px', alignItems: 'center', color: 'inherit' } },
+      h('span', { style: { fontSize: '1.8rem' } }, '📒'),
+      h('div', { style: { flex: 1 } }, h('b', {}, `مرجع الأغاني (${list.length})`),
+        h('div', { class: 'muted', style: { fontSize: '.82rem' } }, list.slice(0, 3).map(x => `${x.name || 'أغنية'}${x.artist ? ' — ' + x.artist : ''}`).join(' · ')))));
   }
   liveBtn.addEventListener('click', () => {
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; return; }
@@ -221,6 +219,10 @@ export function renderAnalyzer(app) {
     btn.disabled = false;
   }
 
+  if (openSongId) {
+    const sng = store.songById(openSongId);
+    if (sng) setTimeout(() => showResults(sng.res, sng), 0);
+  }
   function showResults(res, saved = null) {
     if (!res.ok) { results.append(card(null, h('p', {}, res.reason))); return; }
     stopPracticeTools();
@@ -279,25 +281,40 @@ export function renderAnalyzer(app) {
     // حوّل وتدرّب
     const toolHost = h('div');
     const tbtn = (label, fn) => h('button', { class: 'btn', onclick: () => { stopPracticeTools(); fn(); toolHost.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, label);
-    const saveBtn = h('button', { class: 'btn' }, saved ? '✓ في دفتري' : '💾 احفظ في دفتري');
-    saveBtn.disabled = !!saved;
-    saveBtn.addEventListener('click', () => {
-      const name = prompt('اسم الأغنية:', currentName || '') ;
-      if (name == null) return;
-      const note = prompt('ملاحظة (اختياري):', '') || '';
-      store.addSong({ name: name || currentName || 'أغنية', note, id: b.id, q: b.q, bpm: res.bpm, res });
-      saveBtn.textContent = '✓ في دفتري'; saveBtn.disabled = true;
-      drawNotebook(); toast('حُفظت في دفتر أغانيك');
-    });
+    let savedEntry = saved;
+    const saveBtn = h('button', { class: 'btn' });
+    const savedLine = h('div', { class: 'muted', style: { fontSize: '.85rem', marginTop: '8px' } });
+    let refreshSaved = () => {
+      saveBtn.textContent = savedEntry ? '✎ تعديل الاسم' : '💾 احفظ في المرجع';
+      savedLine.textContent = savedEntry ? `محفوظة في المرجع: ${savedEntry.name || 'أغنية'} — ${savedEntry.artist || 'فنان غير محدد'}` : '';
+    };
+    async function askAndSave() {
+      const artists = artistsList().map(a => a.name).filter(n => n !== 'فنان غير محدد');
+      const artist = await askText({ title: '🎤 اسم المغني', placeholder: 'مثال: محمد عبده', value: savedEntry?.artist || '', suggestions: artists });
+      if (artist === null && !savedEntry) { toast('لم تُحفظ. تقدر تحفظها من زر «احفظ في المرجع».'); return; }
+      const name = await askText({ title: '🎵 اسم الأغنية', placeholder: 'اكتب اسم الأغنية', value: savedEntry?.name || (currentName.startsWith('تسجيل') ? '' : currentName) });
+      const fields = { artist: artist ? canonicalArtist(artist) : (savedEntry?.artist || ''), name: name || savedEntry?.name || currentName || 'أغنية' };
+      if (savedEntry) { store.updateSong(savedEntry.id, fields); Object.assign(savedEntry, fields); toast('تم التعديل'); }
+      else { savedEntry = store.addSong({ ...fields, note: '', maqam: b.id, q: b.q, bpm: res.bpm, res }); toast('حُفظت في مرجع الأغاني'); }
+      refreshSaved(); drawNotebook();
+    }
+    saveBtn.addEventListener('click', askAndSave);
+    const delBtn = h('button', { class: 'btn small', onclick: () => { if (savedEntry && confirm('حذف الأغنية من المرجع؟')) { store.removeSong(savedEntry.id); savedEntry = null; refreshSaved(); drawNotebook(); delBtn.style.display = 'none'; toast('حُذفت'); } } }, '🗑️');
+    delBtn.style.display = saved ? '' : 'none';
+    const _refresh = refreshSaved;
+    refreshSaved = () => { _refresh(); delBtn.style.display = savedEntry ? '' : 'none'; };
+    refreshSaved();
     results.append(card('حوّل الأغنية إلى تدريب',
       h('div', { class: 'row' },
         tbtn('🎸 اعزف معي', () => playAlong(toolHost, { id: b.id, q: b.q, tuning: res.tuningOffset })),
         res.notes && res.notes.length ? tbtn('🎼 اللحن على الزند', () => melodyOnFretboard(toolHost, res, b)) : null,
         tbtn('🥁 رافقني', () => accompaniment(toolHost, b, res.bpm)),
-        saveBtn)), toolHost);
+        saveBtn, delBtn), savedLine), toolHost);
     results.append(h('p', { class: 'muted', style: { fontSize: '.78rem' } }, `تصحيح الدوزان: ${res.tuningOffset > 0 ? '+' : ''}${res.tuningOffset.toFixed(0)} سنت · نسبة اللحن الواضح: ${Math.round(res.voicedRatio * 100)}%`));
-    if (saved) results.prepend(h('div', { class: 'muted', style: { marginBottom: '6px' } }, `من دفترك: ${saved.name}`));
+    if (saved) results.prepend(h('div', { class: 'muted', style: { marginBottom: '6px' } }, `من المرجع: ${saved.name || ''}${saved.artist ? ' — ' + saved.artist : ''}`));
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // بعد تحليل جديد: اسأل عن المغني ثم الأغنية واحفظ
+    if (!saved) setTimeout(askAndSave, 700);
   }
 }
 

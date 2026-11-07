@@ -68,7 +68,21 @@ export function exportData() { return JSON.stringify(state); }
 export function importData(json) { const s = JSON.parse(json); state = { settings: { ...clone(defaults.settings), ...s.settings }, progress: { ...clone(defaults.progress), ...s.progress }, songs: Array.isArray(s.songs) ? s.songs : [] }; save(); }
 
 // ===== دفتر الأغاني =====
-export function songs() { return state.songs || (state.songs = []); }
-export function addSong(entry) { songs().unshift({ id: Date.now().toString(36), date: new Date().toISOString().slice(0, 10), ...entry }); save(); }
+let migrated = false;
+export function songs() {
+  if (!state.songs) state.songs = [];
+  if (!migrated) { // نسخة قديمة كان حقل id فيها اسم المقام
+    migrated = true;
+    let changed = false;
+    state.songs.forEach((x, i) => { if (!x.maqam && x.res && x.res.ranking) { x.maqam = x.res.ranking[0].id; x.id = 's' + Date.now().toString(36) + i; changed = true; } });
+    if (changed) save();
+  }
+  return state.songs;
+}
+export function addSong(entry) {
+  const sng = { ...entry, id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), date: new Date().toISOString().slice(0, 10) };
+  songs().unshift(sng); save(); return sng;
+}
 export function updateSong(id, patch) { const x = songs().find(s => s.id === id); if (x) { Object.assign(x, patch); save(); } }
 export function removeSong(id) { state.songs = songs().filter(s => s.id !== id); save(); }
+export function songById(id) { return songs().find(s => s.id === id); }

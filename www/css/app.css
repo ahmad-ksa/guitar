@@ -217,3 +217,8 @@ body.light .hero { color: #f6ead9; }
 .ear-big { font-size: 1.1rem; text-align: center; margin: 10px 0; }
 .score { font-size: 1.4rem; text-align: center; font-weight: 800; }
 @media (min-width: 700px) { .voices { grid-template-columns: repeat(3, 1fr); } }
+
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; width: 100%; max-width: 420px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+.artist-head { display: flex; align-items: center; gap: 10px; }
+.artist-av { width: 40px; height: 40px; border-radius: 50%; background: var(--card2); display: grid; place-items: center; font-weight: 800; color: var(--accent); flex: none; }

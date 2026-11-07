@@ -88,3 +88,20 @@ export function icon(name) {
   svg.appendChild(p);
   return svg;
 }
+
+// نافذة إدخال نص بأزرار «موافق» و«تخطي»، مع اقتراحات اختيارية
+export function askText({ title, placeholder = '', value = '', suggestions = [], okLabel = 'موافق', skipLabel = 'تخطي' }) {
+  return new Promise(resolve => {
+    const listId = 'dl' + Math.random().toString(36).slice(2);
+    const input = h('input', { type: 'text', value, placeholder, list: suggestions.length ? listId : null, style: { width: '100%', fontSize: '1.05rem' } });
+    const dl = suggestions.length ? h('datalist', { id: listId }, suggestions.map(x => h('option', { value: x }))) : null;
+    const close = v => { overlay.remove(); resolve(v); };
+    const ok = h('button', { class: 'btn primary', onclick: () => close(input.value.trim()) }, okLabel);
+    const skip = h('button', { class: 'btn', onclick: () => close(null) }, skipLabel);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') close(input.value.trim()); });
+    const box = h('div', { class: 'modal' }, h('h3', { style: { marginTop: 0 } }, title), input, dl, h('div', { class: 'row', style: { marginTop: '12px', justifyContent: 'flex-end' } }, skip, ok));
+    const overlay = h('div', { class: 'overlay' }, box);
+    document.body.appendChild(overlay);
+    setTimeout(() => input.focus(), 50);
+  });
+}
