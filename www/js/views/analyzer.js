@@ -305,7 +305,7 @@ export function renderAnalyzer(app, openSongId = null) {
       })();
     // الشريط الزمني
     const bar = h('div', { style: { display: 'flex', height: '34px', borderRadius: '8px', overflow: 'hidden', direction: 'ltr', marginTop: '10px' } },
-      D.segments.map(sg => h('div', { title: `${fmt(sg.start)}–${fmt(sg.end)}`, style: { width: `${100 * (sg.end - sg.start) / total}%`, background: color(keyOf(sg)), opacity: sg.voiced < 0.4 ? 0.45 : 1, borderInlineEnd: '1px solid var(--bg)' } })));
+      D.segments.map(sg => h('div', { title: `${fmt(sg.start)}–${fmt(sg.end)}`, style: { width: `${100 * (sg.end - sg.start) / total}%`, background: color(keyOf(sg)), opacity: sg.voiced < 0.2 ? 0.45 : 1, borderInlineEnd: '1px solid var(--bg)' } })));
     const ticks = h('div', { style: { position: 'relative', height: '16px', direction: 'ltr', fontSize: '.7rem', color: 'var(--muted)' } });
     for (let m = 0; m <= total; m += total > 300 ? 60 : 30) ticks.append(h('span', { style: { position: 'absolute', left: `${100 * m / total}%`, transform: 'translateX(-50%)' } }, fmt(m)));
     // الأحداث
@@ -313,12 +313,17 @@ export function renderAnalyzer(app, openSongId = null) {
       const k = keyOf(sg);
       const prevKeys = D.segments.slice(0, i).map(keyOf);
       const what = i === 0 ? 'البداية على' : (k === mainKey ? (prevKeys.includes(k) ? 'رجعت إلى' : 'دخلت') : (prevKeys.includes(k) ? 'رجعت مرة أخرى إلى' : 'تحولت إلى'));
-      const play = h('button', { class: 'btn small' }, '▶');
+      const play = h('button', { class: 'btn small deep-play' }, '▶');
       play.addEventListener('click', () => {
+        const wasMe = state.audio && state.audio.__btn === play;
         if (state.audio) { state.audio.pause(); state.audio = null; }
-        if (!state.url) return;
-        const a = new Audio(state.url); a.currentTime = sg.start; a.play(); state.audio = a;
-        const stopAt = () => { if (state.audio !== a) return; if (a.currentTime >= sg.end) { a.pause(); state.audio = null; } else requestAnimationFrame(stopAt); };
+        results.querySelectorAll('.deep-play').forEach(b => { b.textContent = '▶'; });
+        if (wasMe || !state.url) return; // الضغطة الثانية توقف التشغيل
+        const a = new Audio(state.url); a.__btn = play; a.currentTime = sg.start; a.play(); state.audio = a;
+        play.textContent = '■';
+        const done = () => { if (state.audio === a) { a.pause(); state.audio = null; } play.textContent = '▶'; };
+        a.onended = done;
+        const stopAt = () => { if (state.audio !== a) return; if (a.currentTime >= sg.end) done(); else requestAnimationFrame(stopAt); };
         requestAnimationFrame(stopAt);
       });
       if (!state.url) play.disabled = true;
@@ -326,7 +331,7 @@ export function renderAnalyzer(app, openSongId = null) {
         h('span', { class: 'st', style: { background: color(k), borderColor: color(k), color: '#1a1208', fontWeight: 800 } }, i + 1),
         h('span', { class: 't' },
           h('b', {}, `${fmt(sg.start)} — ${what} ${label(k)}`),
-          h('small', {}, `حتى ${fmt(sg.end)} · ${Math.round(sg.end - sg.start)} ثانية${k === mainKey ? ' · المقام الأساسي' : ''}${sg.voiced < 0.4 ? ' · قسم موسيقي بلا لحن واضح' : ''}`)),
+          h('small', {}, `حتى ${fmt(sg.end)} · ${Math.round(sg.end - sg.start)} ثانية${k === mainKey ? ' · المقام الأساسي' : ''}${sg.voiced < 0.2 ? ' · قسم موسيقي بلا لحن واضح' : ''}`)),
         h('span', { class: `pill${sg.conf >= 0.6 ? ' ok' : ''}` }, `${Math.round(sg.conf * 100)}%`),
         play);
     });

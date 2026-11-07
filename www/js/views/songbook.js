@@ -77,7 +77,6 @@ export function renderSongbook(app, artistKey) {
       out.append(card('الفنانون', ...artistsList().map(a => h('a', { class: 'lesson-item', href: `#/songbook/${encodeURIComponent(artistKeyOf(a.name))}` },
         h('span', { class: 'artist-av', style: { width: '32px', height: '32px' } }, a.name[0]),
         h('span', { class: 't' }, h('b', {}, h('bdi', {}, a.name)), h('small', {}, `${a.songs.length} أغنية`))))));
-      out.append(card('أحدث الأغاني', ...all.slice(0, 10).map(songRow)));
       return;
     }
     const arts = artistsList().filter(a => matches(a.name, term));
