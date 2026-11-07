@@ -75,6 +75,27 @@ export function framesFromSwift(x11, sf) {
   return frames;
 }
 
+// ===== دمج تتبع صوت المغني المعزول مع الأغنية الأصلية =====
+// حيث يغني المغني (نشاط صوتي خلال ثانيتين حوله) نأخذ صوته فقط،
+// وفي الأقسام الموسيقية بلا غناء نرجع للأغنية الأصلية (تقاسيم، لزمات)
+export function mergeVocalFrames(fv, fm) {
+  const n = Math.min(fv.length, fm.length);
+  const W = Math.round(1 / (HOP / SR)); // ثانية واحدة بكل جهة
+  const pre = new Int32Array(n + 1);
+  for (let i = 0; i < n; i++) pre[i + 1] = pre[i] + (fv[i].cents != null ? 1 : 0);
+  const out = new Array(n);
+  let fromVocals = 0, voiced = 0;
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(0, i - W), b = Math.min(n, i + W + 1);
+    const act = (pre[b] - pre[a]) / (b - a);
+    const f = act > 0.15 ? fv[i] : fm[i];
+    out[i] = f;
+    if (f.cents != null) { voiced++; if (f === fv[i]) fromVocals++; }
+  }
+  out.vocalShare = voiced ? fromVocals / voiced : 0;
+  return out;
+}
+
 // ===== تنعيم: إزالة القفزات الأوكتافية العابرة =====
 function cleanFrames(frames) {
   const v = frames.map(f => (f.cents != null && f.clarity > 0.75 ? f.cents : null));

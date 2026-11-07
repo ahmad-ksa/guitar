@@ -1,5 +1,5 @@
 // محلل المقام: ارفع أغنية أو سجّل مقطعاً، فيحدد التطبيق المقام والقرار مع الدليل
-import { h, card, slider, toast, icon, askText } from '../ui.js';
+import { h, card, slider, toast, icon, askText, toggle } from '../ui.js';
 import { canonicalArtist, artistsList } from './songbook.js';
 import { getCtx, stopAll } from '../audio.js';
 import { MAQAMAT, AJNAS, MAQAM_CHARACTER, spelledName, stepsToOffsets } from '../theory.js';
@@ -19,6 +19,22 @@ export function cleanup() {
   stopRec();
   if (state.audio) { state.audio.pause(); state.audio = null; }
   if (state.url) { URL.revokeObjectURL(state.url); state.url = null; }
+  state.vocals = null;
+}
+// تشغيل عامل (Worker) وانتظار نتيجته، مع تقدّم
+function inWorker(path, msg, transfer, onProgress) {
+  return new Promise((resolve, reject) => {
+    if (state.worker) state.worker.terminate();
+    const w = new Worker(new URL(path, import.meta.url), { type: 'module' });
+    state.worker = w;
+    w.onmessage = e => {
+      if (e.data.progress != null) { onProgress(e.data.progress); return; }
+      w.terminate(); if (state.worker === w) state.worker = null;
+      if (e.data.error) reject(new Error(e.data.error)); else resolve(e.data);
+    };
+    w.onerror = e => { w.terminate(); if (state.worker === w) state.worker = null; reject(e); };
+    w.postMessage(msg, transfer);
+  });
 }
 function stopRec() {
   if (state.proc) { try { state.proc.disconnect(); } catch (e) {} state.proc = null; }
@@ -65,7 +81,10 @@ export function renderAnalyzer(app, openSongId = null) {
     h('h3', { style: { color: 'var(--chord)' } }, '🧠 تحليل عميق للأغنية كاملة'),
     h('p', { class: 'muted', style: { fontSize: '.86rem' } }, 'ارفع الأغنية كاملة، وسأقسمها إلى أقسام: متى بدأ كل مقام، ومتى تحولت الأغنية لمقام آخر، ومتى رجعت. وإذا كانت على مقام واحد سأخبرك.'),
     h('button', { class: 'btn', style: { width: '100%', borderColor: 'var(--chord)' }, onclick: () => deepIn.click() }, '📁 ارفع الأغنية للتحليل العميق'), deepIn);
-  app.append(card(null, h('div', { class: 'row' }, pickBtn, recBtn, liveBtn), h('div', { class: 'row', style: { marginTop: '8px' } }, soloBtn), fileIn, status), deepCard, playHost, livePanel, editor, results, notebook,
+  const isoT = h('div', { style: { marginTop: '10px' } },
+    toggle('🎤 اعزل صوت المغني عن الموسيقى قبل التحليل', store.settings().isolateVocals !== false, v => store.setSetting('isolateVocals', v)),
+    h('div', { class: 'muted', style: { fontSize: '.78rem', marginTop: '2px' } }, 'أدق بكثير مع الأغاني المغنّاة، لكنه أبطأ (تقريباً ثانية إلى 3 ثوانٍ لكل 12 ثانية من الأغنية).'));
+  app.append(card(null, h('div', { class: 'row' }, pickBtn, recBtn, liveBtn), h('div', { class: 'row', style: { marginTop: '8px' } }, soloBtn), isoT, fileIn, status), deepCard, playHost, livePanel, editor, results, notebook,
     card('نصائح لأدق نتيجة', h('ul', { style: { margin: 0, paddingInlineStart: '18px' } },
       h('li', {}, 'اختر مقطعاً فيه غناء أو عزف منفرد واضح، دقيقة إلى 3 دقائق.'),
       h('li', {}, 'لأغنية على يوتيوب أو التلفزيون: شغّلها من جهاز آخر وقرّب الجوال، واستخدم «استمع مباشرة».'),
@@ -240,43 +259,50 @@ export function renderAnalyzer(app, openSongId = null) {
     const label = h('div', { class: 'muted', style: { fontSize: '.85rem', marginTop: '6px' } }, 'تجهيز الصوت…');
     results.append(card('جارٍ التحليل', h('div', { class: 'bar' }, bar), label));
     try {
-      // تحويل لقناة واحدة 11025Hz مع ترشيح يبرز منطقة اللحن
-      const n = Math.ceil(len * SR);
-      const off = new OfflineAudioContext(1, n, SR);
-      const src = off.createBufferSource(); src.buffer = decoded;
-      const hp = off.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 110;
-      const lp = off.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
-      src.connect(hp).connect(lp).connect(off.destination);
-      src.start(0, start, len);
-      const rendered = await off.startRendering();
+      const setP = (p0, p1) => p => { bar.style.width = `${Math.round((p0 + p * (p1 - p0)) * 100)}%`; };
+      // 1) عزل صوت المغني (اختياري، الإعداد مفعّل افتراضياً)
+      let vocals = null;
+      state.vocals = null;
+      if (store.settings().isolateVocals !== false) {
+        label.textContent = '🎤 عزل صوت المغني عن الموسيقى… (أبطأ خطوة)';
+        const off44 = new OfflineAudioContext(2, Math.ceil(len * 44100), 44100);
+        const s44 = off44.createBufferSource(); s44.buffer = decoded; s44.connect(off44.destination); s44.start(0, start, len);
+        const r44 = await off44.startRendering();
+        if (!alive()) return;
+        const L = new Float32Array(r44.getChannelData(0)), R = new Float32Array(r44.getChannelData(1));
+        const v = await inWorker('../workers/sep-worker.js', { L, R }, [L.buffer, R.buffer], setP(0, 0.6)).catch(e => { console.warn(e); return null; });
+        if (!alive()) return;
+        if (v && v.vocals) {
+          vocals = getCtx().createBuffer(1, v.vocals.length, 44100);
+          vocals.copyToChannel(v.vocals, 0);
+          state.vocals = vocals;
+        }
+      }
+      // 2) تحويل لقناة واحدة 11025Hz (YIN) و16kHz (SwiftF0)
+      const prep = async (buf, offset) => {
+        const off = new OfflineAudioContext(1, Math.ceil(len * SR), SR);
+        const src = off.createBufferSource(); src.buffer = buf;
+        const hp = off.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 110;
+        const lp = off.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
+        src.connect(hp).connect(lp).connect(off.destination);
+        src.start(0, offset, len);
+        const x = new Float32Array((await off.startRendering()).getChannelData(0));
+        const off16 = new OfflineAudioContext(1, Math.ceil(len * 16000), 16000);
+        const src16 = off16.createBufferSource(); src16.buffer = buf;
+        const hp16 = off16.createBiquadFilter(); hp16.type = 'highpass'; hp16.frequency.value = 80;
+        src16.connect(hp16).connect(off16.destination);
+        src16.start(0, offset, len);
+        const x16 = new Float32Array((await off16.startRendering()).getChannelData(0));
+        for (const y of [x, x16]) { let pk = 0; for (let i = 0; i < y.length; i++) pk = Math.max(pk, Math.abs(y[i])); if (pk > 0) for (let i = 0; i < y.length; i++) y[i] /= pk; }
+        return { x, x16 };
+      };
+      const mix = await prep(decoded, start);
       if (!alive()) return;
-      const x = new Float32Array(rendered.getChannelData(0));
-      // نسخة 16kHz لنموذج SwiftF0
-      const off16 = new OfflineAudioContext(1, Math.ceil(len * 16000), 16000);
-      const src16 = off16.createBufferSource(); src16.buffer = decoded;
-      const hp16 = off16.createBiquadFilter(); hp16.type = 'highpass'; hp16.frequency.value = 80;
-      src16.connect(hp16).connect(off16.destination);
-      src16.start(0, start, len);
-      const x16 = new Float32Array((await off16.startRendering()).getChannelData(0));
+      const msg = { x: mix.x, x16: mix.x16, deep }, tr = [mix.x.buffer, mix.x16.buffer];
+      if (vocals) { const vv = await prep(vocals, 0); msg.xv = vv.x; msg.xv16 = vv.x16; tr.push(vv.x.buffer, vv.x16.buffer); }
       if (!alive()) return;
-      { let pk = 0; for (let i = 0; i < x16.length; i++) pk = Math.max(pk, Math.abs(x16[i])); if (pk > 0) for (let i = 0; i < x16.length; i++) x16[i] /= pk; }
-      // تطبيع
-      let peak = 0; for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
-      if (peak > 0) for (let i = 0; i < x.length; i++) x[i] /= peak;
       label.textContent = 'تتبع اللحن بدقة ربع التون…';
-      if (!alive()) return;
-      const res = await new Promise((resolve, reject) => {
-        if (state.worker) state.worker.terminate();
-        const w = new Worker(new URL('../workers/maqam-worker.js', import.meta.url), { type: 'module' });
-        state.worker = w;
-        w.onmessage = e => {
-          if (e.data.progress != null) { bar.style.width = `${Math.round(e.data.progress * 100)}%`; return; }
-          w.terminate(); state.worker = null;
-          if (e.data.error) reject(new Error(e.data.error)); else resolve(e.data.result);
-        };
-        w.onerror = e => { w.terminate(); state.worker = null; reject(e); };
-        w.postMessage({ x, x16, deep }, [x.buffer, x16.buffer]);
-      });
+      const res = (await inWorker('../workers/maqam-worker.js', msg, tr, setP(vocals ? 0.6 : 0, 1))).result;
       if (!alive()) return;
       results.innerHTML = '';
       if (res.ok) res.startOffset = start;
@@ -441,7 +467,23 @@ export function renderAnalyzer(app, openSongId = null) {
         res.notes && res.notes.length ? tbtn('🎼 اللحن على الزند', () => melodyOnFretboard(toolHost, res, b)) : null,
         tbtn('🥁 رافقني', () => accompaniment(toolHost, b, res.bpm)),
         saveBtn, delBtn), savedLine), toolHost);
-    results.append(h('p', { class: 'muted', style: { fontSize: '.78rem' } }, `تصحيح الدوزان: ${res.tuningOffset > 0 ? '+' : ''}${res.tuningOffset.toFixed(0)} سنت · نسبة اللحن الواضح: ${Math.round(res.voicedRatio * 100)}% · محرك التتبع: ${res.engine === 'swiftf0' ? 'SwiftF0' : 'YIN'}`));
+    if (state.vocals && !saved) {
+      const vb = state.vocals;
+      const vbtn = h('button', { class: 'btn small' }, '🎤 اسمع صوت المغني المعزول');
+      vbtn.addEventListener('click', () => {
+        const mine = state.audio && state.audio.__vb;
+        if (state.audio) { state.audio.pause(); state.audio = null; }
+        vbtn.textContent = '🎤 اسمع صوت المغني المعزول';
+        if (mine) return;
+        const c = getCtx(); const s = c.createBufferSource(); s.buffer = vb; s.connect(c.destination); s.start();
+        state.audio = { __vb: true, pause: () => { try { s.stop(); } catch (e) {} } }; vbtn.textContent = '■ إيقاف';
+        s.onended = () => { if (state.audio && state.audio.__vb) state.audio = null; vbtn.textContent = '🎤 اسمع صوت المغني المعزول'; };
+      });
+      const vs = res.vocalShare;
+      const share = vs == null ? (res.vocalsTried ? ' لكن الأغنية الأصلية أعطت نتيجة أوضح هنا (غالباً عزف آلي بلا غناء)، فاعتمدناها.' : '') : vs > 0.97 ? ' اعتمد التحليل على صوت المغني بالكامل.' : vs < 0.03 ? ' لم نسمع غناءً واضحاً، فاعتمد التحليل على الموسيقى نفسها.' : ` اعتمد التحليل على صوت المغني في ${Math.round(vs * 100)}% من اللحن، والباقي من الموسيقى (لزمات وتقاسيم).`;
+      results.append(card(null, h('div', { class: 'muted', style: { fontSize: '.85rem', marginBottom: '6px' } }, `عزلنا صوت المغني عن الموسيقى.${share}`), vbtn));
+    }
+    results.append(h('p', { class: 'muted', style: { fontSize: '.78rem' } }, `تصحيح الدوزان: ${res.tuningOffset > 0 ? '+' : ''}${res.tuningOffset.toFixed(0)} سنت · نسبة اللحن الواضح: ${Math.round(res.voicedRatio * 100)}% · محرك التتبع: ${res.engine === 'swiftf0' ? 'SwiftF0' : 'YIN'}${res.vocalShare != null ? ' + عزل الصوت (Spleeter)' : ''}`));
     if (saved) results.prepend(h('div', { class: 'muted', style: { marginBottom: '6px' } }, `من المرجع: ${saved.name || ''}${saved.artist ? ' — ' + saved.artist : ''}`));
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     // بعد تحليل جديد: اسأل عن المغني ثم الأغنية واحفظ
