@@ -11,8 +11,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
-      - run: pip install silma_tts edge-tts && pip uninstall -y torchcodec || true
+      - run: pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 soundfile --extra-index-url https://pypi.org/simple --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install silma_tts edge-tts torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 --extra-index-url https://download.pytorch.org/whl/cpu && pip uninstall -y torchcodec || true
       - run: node tools/voice-list.mjs voice-list.json
       - run: python tools/silma_sample.py voice-list.json samples
       - name: edge-tts للمقارنة
