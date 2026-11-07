@@ -261,6 +261,105 @@ export function analyzeFrames(frames, opts = {}) {
   };
 }
 
+// ===== التحليل العميق: تقسيم الأغنية كاملة إلى أقسام مقامية =====
+// نوافذ 10 ثوانٍ بخطوة 5، ثم مسار Viterbi يفضّل الاستمرار على نفس المقام ويعاقب التبديل
+export function deepAnalyzeFrames(frames) {
+  const base = analyzeFrames(frames, { timeline: false });
+  if (!base.ok) return base;
+  const hopSec = HOP / SR;
+  const raw = cleanFrames(frames);
+  const cents = raw.map(c => (c == null ? null : c - base.tuningOffset));
+  const main = base.ranking[0];
+  const mainKey = main.id + ':' + main.q;
+  const win = Math.round(10 / hopSec), step = Math.round(5 / hopSec);
+  const W = [];
+  for (let s = 0; s < cents.length; s += step) {
+    const seg = cents.slice(s, s + win);
+    const voiced = seg.filter(c => c != null);
+    const w = { start: s * hopSec, end: Math.min(cents.length, s + win) * hopSec, scores: null };
+    if (voiced.length >= 80) {
+      const hs = histogram(seg);
+      const ns = segmentNotes(seg, hopSec);
+      const fs = histogram(ns.length ? ns.map(n => n.c) : seg, ns.length ? ns.map((n, k) => ((n.gapAfter >= 0.2 || k === ns.length - 1) ? 1 : 0.05) * Math.min(2, n.dur)) : null);
+      const srt = [...voiced].sort((a, b) => a - b);
+      const low = srt[Math.floor(srt.length * 0.15)];
+      const sc = new Map();
+      for (let q = 0; q < 24; q++) for (const id of MAQAM_IDS) {
+        if ((q % 2 === 1) !== !!MAQAMAT[id].rootQuarter) continue;
+        sc.set(id + ':' + q, scoreMaqam(hs, fs, q * 50, id, low));
+      }
+      w.scores = sc;
+    }
+    W.push(w);
+    if (s + win >= cents.length) break;
+  }
+  // المرشحون: أفضل 3 في كل نافذة + المقام العام
+  const cand = new Set([mainKey]);
+  W.forEach(w => { if (w.scores) [...w.scores].sort((a, b) => b[1] - a[1]).slice(0, 3).forEach(([k]) => cand.add(k)); });
+  const C = [...cand];
+  const SWITCH = 0.22, MAIN_BIAS = 0.04;
+  const em = (w, k) => (w.scores ? w.scores.get(k) + (k === mainKey ? MAIN_BIAS : 0) : (k === mainKey ? 0.01 : 0));
+  let prev = C.map(k => em(W[0], k));
+  const back = [];
+  for (let t = 1; t < W.length; t++) {
+    const cur = [], bp = [];
+    for (let j = 0; j < C.length; j++) {
+      let best = -Infinity, arg = 0;
+      for (let i = 0; i < C.length; i++) { const v = prev[i] - (i === j ? 0 : SWITCH); if (v > best) { best = v; arg = i; } }
+      cur.push(best + em(W[t], C[j])); bp.push(arg);
+    }
+    back.push(bp); prev = cur;
+  }
+  let k = prev.indexOf(Math.max(...prev));
+  const path = [k];
+  for (let t = back.length - 1; t >= 0; t--) { k = back[t][k]; path.unshift(k); }
+  // دمج النوافذ المتتالية في أقسام
+  let segs = [];
+  W.forEach((w, t) => {
+    const key = C[path[t]];
+    const last = segs[segs.length - 1];
+    const mid = (w.start + w.end) / 2;
+    if (last && last.key === key) { last.end = mid; last.n++; last.voicedN += w.scores ? 1 : 0; last.probSum += probOf(w, key); }
+    else segs.push({ key, start: t === 0 ? 0 : (w.start + (W[t - 1].end)) / 2, end: mid, n: 1, voicedN: w.scores ? 1 : 0, probSum: probOf(w, key) });
+  });
+  if (segs.length) { segs[0].start = 0; segs[segs.length - 1].end = W[W.length - 1].end; for (let i = 1; i < segs.length; i++) segs[i].start = segs[i - 1].end; }
+  // الأقسام القصيرة جداً (أقل من 15 ثانية) تُدمج مع ما قبلها
+  for (let i = 1; i < segs.length; i++) {
+    if (segs[i].end - segs[i].start < 15 && segs.length > 1) {
+      segs[i - 1].end = segs[i].end; segs[i - 1].n += segs[i].n; segs[i - 1].voicedN += segs[i].voicedN; segs[i - 1].probSum += segs[i].probSum;
+      segs.splice(i, 1); i--;
+      if (i > 0 && segs[i] && segs[i - 1].key === segs[i].key) { segs[i - 1].end = segs[i].end; segs[i - 1].n += segs[i].n; segs[i - 1].voicedN += segs[i].voicedN; segs[i - 1].probSum += segs[i].probSum; segs.splice(i, 1); i--; }
+    }
+  }
+  // تدقيق حدود الأقسام: أول نافذة يتفوق فيها المقام الجديد على السابق قرب الحد
+  for (let i = 1; i < segs.length; i++) {
+    const A = segs[i - 1].key, B = segs[i].key, bnd = segs[i].start;
+    let found = null;
+    for (const w of W) {
+      const mid = (w.start + w.end) / 2;
+      if (!w.scores || mid < bnd - 25 || mid > bnd + 10) continue;
+      if (w.scores.get(B) > w.scores.get(A)) { found = mid - 2.5; break; }
+    }
+    if (found != null && found > segs[i - 1].start + 5 && found < segs[i].end - 5) { segs[i - 1].end = found; segs[i].start = found; }
+  }
+  const segments = segs.map(sg => {
+    const [id, q] = sg.key.split(':');
+    return { start: +sg.start.toFixed(1), end: +sg.end.toFixed(1), id, q: +q, conf: sg.voicedN ? +(sg.probSum / sg.voicedN).toFixed(2) : 0, voiced: sg.voicedN / sg.n };
+  });
+  // المقام الرئيسي = الأطول زمناً
+  const dur = {};
+  segments.forEach(sg => { const kk = sg.id + ':' + sg.q; dur[kk] = (dur[kk] || 0) + (sg.end - sg.start); });
+  const mainSeg = Object.entries(dur).sort((a, b) => b[1] - a[1])[0][0].split(':');
+  return { ...base, deep: { main: { id: mainSeg[0], q: +mainSeg[1] }, segments, distinct: Object.keys(dur).length, durationByMaqam: dur, total: W.length ? W[W.length - 1].end : 0 } };
+}
+function probOf(w, key) {
+  if (!w.scores) return 0;
+  const arr = [...w.scores.values()];
+  const mx = Math.max(...arr);
+  let sum = 0; for (const v of arr) sum += Math.exp((v - mx) / 0.045);
+  return Math.exp((w.scores.get(key) - mx) / 0.045) / sum;
+}
+
 // ===== سرعة الإيقاع (BPM) تقريبية من غلاف الطاقة =====
 export function estimateBpm(frames) {
   const hop = HOP / SR;
@@ -291,6 +390,11 @@ export function tonicFromQ(q) { return { pc: Math.floor(q / 2) % 12, quarter: q 
 export function analyze(x, sr = SR, onProgress) {
   const frames = trackPitch(x, sr, onProgress);
   return analyzeFrames(frames);
+}
+
+export function deepAnalyze(x, sr = SR, onProgress) {
+  const frames = trackPitch(x, sr, onProgress);
+  return deepAnalyzeFrames(frames);
 }
 
 export { MAQAM_IDS, AJNAS };

@@ -55,7 +55,13 @@ export function renderAnalyzer(app, openSongId = null) {
   const status = h('div', { class: 'muted', style: { fontSize: '.88rem', marginTop: '8px' } });
   const editor = h('div');
   const results = h('div');
-  app.append(card(null, h('div', { class: 'row' }, pickBtn, recBtn, liveBtn), h('div', { class: 'row', style: { marginTop: '8px' } }, soloBtn), fileIn, status), playHost, livePanel, editor, results, notebook,
+  // التحليل العميق: يتطلب رفع الأغنية كاملة
+  const deepIn = h('input', { type: 'file', accept: 'audio/*,video/mp4,.mp3,.m4a,.wav,.ogg,.aac,.flac', style: { display: 'none' } });
+  const deepCard = h('section', { class: 'card', style: { borderColor: 'var(--chord)' } },
+    h('h3', { style: { color: 'var(--chord)' } }, '🧠 تحليل عميق للأغنية كاملة'),
+    h('p', { class: 'muted', style: { fontSize: '.86rem' } }, 'ارفع الأغنية كاملة، وسأقسمها إلى أقسام: متى بدأ كل مقام، ومتى تحولت الأغنية لمقام آخر، ومتى رجعت. وإذا كانت على مقام واحد سأخبرك.'),
+    h('button', { class: 'btn', style: { width: '100%', borderColor: 'var(--chord)' }, onclick: () => deepIn.click() }, '📁 ارفع الأغنية للتحليل العميق'), deepIn);
+  app.append(card(null, h('div', { class: 'row' }, pickBtn, recBtn, liveBtn), h('div', { class: 'row', style: { marginTop: '8px' } }, soloBtn), fileIn, status), deepCard, playHost, livePanel, editor, results, notebook,
     card('نصائح لأدق نتيجة', h('ul', { style: { margin: 0, paddingInlineStart: '18px' } },
       h('li', {}, 'اختر مقطعاً فيه غناء أو عزف منفرد واضح، دقيقة إلى 3 دقائق.'),
       h('li', {}, 'لأغنية على يوتيوب أو التلفزيون: شغّلها من جهاز آخر وقرّب الجوال، واستخدم «استمع مباشرة».'),
@@ -79,6 +85,24 @@ export function renderAnalyzer(app, openSongId = null) {
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; return; }
     editor.innerHTML = ''; results.innerHTML = '';
     startLive(livePanel, status).then(ok => { if (ok) liveBtn.textContent = '■ أوقف الاستماع'; });
+  });
+  deepIn.addEventListener('change', async () => {
+    const f = deepIn.files[0];
+    if (!f) return;
+    if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; }
+    livePanel.innerHTML = ''; editor.innerHTML = ''; results.innerHTML = '';
+    currentName = f.name.replace(/\.[^.]+$/, '');
+    status.textContent = `جارٍ قراءة ${f.name}…`;
+    try {
+      const buf = await f.arrayBuffer();
+      decoded = await getCtx().decodeAudioData(buf.slice(0));
+      if (state.url) URL.revokeObjectURL(state.url);
+      state.url = URL.createObjectURL(f);
+      const len = Math.min(decoded.duration, 480);
+      status.textContent = `${f.name} · ${fmt(decoded.duration)}${decoded.duration > 480 ? ' (سأحلل أول 8 دقائق)' : ''}`;
+      run(0, len, h('button'), true);
+    } catch (e) { status.textContent = 'تعذّر قراءة الملف. جرّب صيغة MP3 أو M4A أو WAV.'; }
+    deepIn.value = '';
   });
   fileIn.addEventListener('change', async () => {
     const f = fileIn.files[0];
@@ -178,7 +202,7 @@ export function renderAnalyzer(app, openSongId = null) {
     return go;
   }
 
-  async function run(start, len, btn) {
+  async function run(start, len, btn, deep = false) {
     btn.disabled = true;
     results.innerHTML = '';
     const bar = h('i', { style: { width: '0%' } });
@@ -209,9 +233,10 @@ export function renderAnalyzer(app, openSongId = null) {
           if (e.data.error) reject(new Error(e.data.error)); else resolve(e.data.result);
         };
         w.onerror = e => { w.terminate(); state.worker = null; reject(e); };
-        w.postMessage({ x }, [x.buffer]);
+        w.postMessage({ x, deep }, [x.buffer]);
       });
       results.innerHTML = '';
+      if (deep && res.ok && res.deep) showDeep(res);
       showResults(res);
     } catch (e) {
       console.error(e);
@@ -223,8 +248,62 @@ export function renderAnalyzer(app, openSongId = null) {
 
   if (openSongId) {
     const sng = store.songById(openSongId);
-    if (sng) setTimeout(() => showResults(sng.res, sng), 0);
+    if (sng) setTimeout(() => { if (sng.res.deep) showDeep(sng.res); showResults(sng.res, sng); }, 0);
   }
+  function showDeep(res) {
+    const D = res.deep;
+    const keyOf = sg => sg.id + ':' + sg.q;
+    const colors = ['var(--accent)', 'var(--chord)', 'var(--root)', 'var(--quarter)', '#8f7ae0', '#5aa7d9', '#d0d07a'];
+    const keys = [...new Set(D.segments.map(keyOf))];
+    const mainKey = D.main.id + ':' + D.main.q;
+    keys.sort((a, b) => (b === mainKey) - (a === mainKey));
+    const color = k => colors[keys.indexOf(k) % colors.length];
+    const label = k => { const [id, q] = k.split(':'); return `${MAQAMAT[id].name} من ${tonicName(+q)}`; };
+    const total = D.total || D.segments[D.segments.length - 1].end;
+    const summary = D.distinct === 1
+      ? `الأغنية على مقام واحد من البداية للنهاية: ${label(mainKey)}.`
+      : (() => {
+        const nm = D.distinct === 2 ? 'مقامين' : `${D.distinct} مقامات`;
+        const t = D.segments.length - 1;
+        const tw = t === 1 ? 'تحويل واحد' : t === 2 ? 'تحويلان' : `${t} تحويلات`;
+        return `سمعت ${nm} في الأغنية. المقام الأساسي ${label(mainKey)}، وفيها ${tw}.`;
+      })();
+    // الشريط الزمني
+    const bar = h('div', { style: { display: 'flex', height: '34px', borderRadius: '8px', overflow: 'hidden', direction: 'ltr', marginTop: '10px' } },
+      D.segments.map(sg => h('div', { title: `${fmt(sg.start)}–${fmt(sg.end)}`, style: { width: `${100 * (sg.end - sg.start) / total}%`, background: color(keyOf(sg)), opacity: sg.voiced < 0.4 ? 0.45 : 1, borderInlineEnd: '1px solid var(--bg)' } })));
+    const ticks = h('div', { style: { position: 'relative', height: '16px', direction: 'ltr', fontSize: '.7rem', color: 'var(--muted)' } });
+    for (let m = 0; m <= total; m += total > 300 ? 60 : 30) ticks.append(h('span', { style: { position: 'absolute', left: `${100 * m / total}%`, transform: 'translateX(-50%)' } }, fmt(m)));
+    // الأحداث
+    const rows = D.segments.map((sg, i) => {
+      const k = keyOf(sg);
+      const prevKeys = D.segments.slice(0, i).map(keyOf);
+      const what = i === 0 ? 'البداية على' : (k === mainKey ? (prevKeys.includes(k) ? 'رجعت إلى' : 'دخلت') : (prevKeys.includes(k) ? 'رجعت مرة أخرى إلى' : 'تحولت إلى'));
+      const play = h('button', { class: 'btn small' }, '▶');
+      play.addEventListener('click', () => {
+        if (state.audio) { state.audio.pause(); state.audio = null; }
+        if (!state.url) return;
+        const a = new Audio(state.url); a.currentTime = sg.start; a.play(); state.audio = a;
+        const stopAt = () => { if (state.audio !== a) return; if (a.currentTime >= sg.end) { a.pause(); state.audio = null; } else requestAnimationFrame(stopAt); };
+        requestAnimationFrame(stopAt);
+      });
+      if (!state.url) play.disabled = true;
+      return h('div', { class: 'lesson-item' },
+        h('span', { class: 'st', style: { background: color(k), borderColor: color(k), color: '#1a1208', fontWeight: 800 } }, i + 1),
+        h('span', { class: 't' },
+          h('b', {}, `${fmt(sg.start)} — ${what} ${label(k)}`),
+          h('small', {}, `حتى ${fmt(sg.end)} · ${Math.round(sg.end - sg.start)} ثانية${k === mainKey ? ' · المقام الأساسي' : ''}${sg.voiced < 0.4 ? ' · قسم موسيقي بلا لحن واضح' : ''}`)),
+        h('span', { class: `pill${sg.conf >= 0.6 ? ' ok' : ''}` }, `${Math.round(sg.conf * 100)}%`),
+        play);
+    });
+    results.append(h('section', { class: 'card hl', style: { borderColor: 'var(--chord)' } },
+      h('div', { class: 'row between' }, h('span', { class: 'muted' }, '🧠 التحليل العميق'), h('span', { class: 'pill' }, fmt(total))),
+      h('h2', { style: { margin: '6px 0' } }, summary),
+      bar, ticks,
+      h('div', { class: 'legend', style: { marginTop: '6px' } }, keys.map(k => h('span', {}, h('i', { style: { background: color(k) } }), label(k)))),
+      h('div', { style: { marginTop: '10px' } }, rows),
+      h('p', { class: 'muted', style: { fontSize: '.78rem', marginTop: '8px' } }, 'أوقات التحويل تقريبية (±10 ثوانٍ تقريباً). التحويلات غالباً تكون في الكوبليه أو الموال، والعودة للمقام الأساسي في المذهب. اضغط ▶ لسماع أي قسم.')));
+  }
+
   function showResults(res, saved = null) {
     if (!res.ok) { results.append(card(null, h('p', {}, res.reason))); return; }
     stopPracticeTools();
