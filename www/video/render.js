@@ -1,7 +1,7 @@
 // محرك فيديو الدروس: يبني مشاهد الفيديو من محتوى الدرس (الشرح المسموع، الزند المتحرك،
 // الرسومات، الترجمة) ويرسم أي لحظة t على لوحة 1280×720، ويولّد شريط الصوت كاملاً.
 // يستخدمه سكربت tools/render-videos.mjs لإنتاج ملفات MP4.
-import { lessonById, LEVELS } from '../js/lessons/index.js';
+import { lessonById, ALL } from '../js/lessons/index.js';
 import { buildExercise } from '../js/exercises.js';
 import { RHYTHMS, OPEN_STRINGS, freqOfQ, getScale, rootQ, noteName } from '../js/theory.js';
 import { cleanForSpeech, voiceKey } from '../js/voicekey.js';
@@ -305,3 +305,5 @@ window.videoPrepare = async id => {
 };
 window.videoFrame = t => { drawAt(ctx2d, plan, t); };
 window.videoAudio = async () => wavBase64(await renderAudio(plan));
+window.videoLessonIds = () => ALL.map(l => l.id);
+window.videoLessonSig = id => JSON.stringify(lessonById(id) || null);

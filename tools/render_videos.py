@@ -23,7 +23,8 @@ async def main():
         await pg.goto(f'{BASE}/video/index.html'); await pg.wait_for_function('window.videoReady')
         ids = IDS
         if ids == ['all']:
-            ids = await pg.evaluate("import('../js/lessons/index.js').then(m => m.ALL.map(l => l.id))")
+            ids = await pg.evaluate("window.videoLessonIds()")
+        print(len(ids), 'lessons', flush=True)
         if SHARD:
             i, n = map(int, SHARD.split('/')); ids = ids[i::n]
         man_path = os.path.join(OUT, 'manifest.json')
@@ -31,7 +32,7 @@ async def main():
         except Exception: manifest = {}
         for lid in ids:
             # بصمة المحتوى: نص الدرس + نسخة المحرك
-            sig = await pg.evaluate(f"import('../js/lessons/index.js').then(m => JSON.stringify(m.lessonById('{lid}')))")
+            sig = await pg.evaluate("id => window.videoLessonSig(id)", lid)
             eng = ''.join(open(os.path.join(os.path.dirname(__file__), '..', 'www', 'video', f), encoding='utf-8').read() for f in ('render.js', 'figures.js'))
             h = hashlib.sha1((sig + eng).encode()).hexdigest()[:16]
             mp4 = os.path.join(OUT, f'{lid}.mp4')
