@@ -57,7 +57,7 @@ export function renderAnalyzer(app, openSongId = null) {
   const results = h('div');
   app.append(card(null, h('div', { class: 'row' }, pickBtn, recBtn, liveBtn), h('div', { class: 'row', style: { marginTop: '8px' } }, soloBtn), fileIn, status), playHost, livePanel, editor, results, notebook,
     card('نصائح لأدق نتيجة', h('ul', { style: { margin: 0, paddingInlineStart: '18px' } },
-      h('li', {}, 'اختر مقطعاً فيه غناء أو عزف منفرد واضح، 30 إلى 60 ثانية.'),
+      h('li', {}, 'اختر مقطعاً فيه غناء أو عزف منفرد واضح، دقيقة إلى 3 دقائق.'),
       h('li', {}, 'لأغنية على يوتيوب أو التلفزيون: شغّلها من جهاز آخر وقرّب الجوال، واستخدم «استمع مباشرة».'),
       h('li', {}, 'المذهب أو بداية الأغنية أفضل غالباً، لأن الأغنية قد تتحول لمقام آخر لاحقاً.'),
       h('li', {}, 'المقامات الشقيقة (البياتي والحسيني مثلاً) تختلف في الجنس الأعلى، فتحتاج مقطعاً يصعد إليه.'),
@@ -116,8 +116,8 @@ export function renderAnalyzer(app, openSongId = null) {
         const d = e.inputBuffer.getChannelData(0);
         chunks.push(new Float32Array(d)); len += d.length;
         const sec = (Date.now() - t0) / 1000;
-        status.textContent = `● جارٍ التسجيل ${fmt(sec)} — اضغط «أوقف» عند الانتهاء (الحد 60 ثانية)`;
-        if (sec >= 60) finishRec();
+        status.textContent = `● جارٍ التسجيل ${fmt(sec)} — اضغط «أوقف» عند الانتهاء (الحد 3 دقائق)`;
+        if (sec >= 180) finishRec();
       };
       const mute = c.createGain(); mute.gain.value = 0;
       src.connect(proc); proc.connect(mute); mute.connect(c.destination);
@@ -144,15 +144,16 @@ export function renderAnalyzer(app, openSongId = null) {
     decoded = ab;
     currentName = 'تسجيل ' + new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
     state.url = null;
-    status.textContent = `تسجيل · ${fmt(ab.duration)}`;
-    showEditor();
+    status.textContent = `تسجيل · ${fmt(ab.duration)} — جارٍ التحليل مباشرة…`;
+    const go = showEditor(Math.min(ab.duration, 180));
+    run(0, Math.min(ab.duration, 180), go); // تحليل فوري للتسجيل كاملاً
   }
 
-  function showEditor() {
+  function showEditor(initialLen = null) {
     editor.innerHTML = '';
     const dur = decoded.duration;
     let start = 0;
-    let len = Math.min(dur, 60);
+    let len = initialLen || Math.min(dur, 60);
     const preview = h('button', { class: 'btn small' }, '▶ استمع للمقطع');
     preview.addEventListener('click', () => {
       if (state.audio) { state.audio.pause(); state.audio = null; preview.textContent = '▶ استمع للمقطع'; return; }
@@ -171,9 +172,10 @@ export function renderAnalyzer(app, openSongId = null) {
     const els = [];
     if (dur > 15) {
       els.push(slider('البداية', 0, Math.max(0, Math.floor(dur - 10)), 1, 0, v => { start = v; if (start + len > dur) len = dur - start; }, v => fmt(v)));
-      els.push(slider('المدة', 10, Math.min(120, Math.floor(dur)), 1, Math.round(len), v => { len = Math.min(v, dur - start); }, v => `${v} ث`));
+      els.push(slider('المدة', 10, Math.min(180, Math.floor(dur)), 1, Math.round(len), v => { len = Math.min(v, dur - start); }, v => `${v} ث`));
     }
     editor.append(card('المقطع المراد تحليله', ...els, h('div', { class: 'row', style: { margin: '8px 0' } }, preview), go));
+    return go;
   }
 
   async function run(start, len, btn) {
