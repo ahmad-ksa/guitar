@@ -8,6 +8,7 @@ import * as store from '../store.js';
 import { lessonById, nextLesson, prevLesson, LEVELS } from '../lessons/index.js';
 import { RHYTHMS, getScale, rootQ } from '../theory.js';
 import { stopAll } from '../audio.js';
+import { activity } from '../screen.js';
 
 const AVATARS = { pro: ['🎸', 'العازف المحترف'], maestro: ['🎼', 'المايسترو'], teacher: ['📘', 'مدرس الموسيقى'] };
 
@@ -40,6 +41,26 @@ function droneFor(ex) {
   return rootQ(sp.root, sp.rootQuarter ?? sc?.rootQuarter ?? false, 36);
 }
 
+// فيديو الدرس: يُبث من إصدار «videos» على GitHub (يحتاج إنترنت)
+const VIDEO_BASE = 'https://github.com/ahmad-ksa/guitar/releases/download/videos/';
+function openLessonVideo(lesson) {
+  speech.stop(); stopAll();
+  const msg = h('div', { class: 'muted', style: { fontSize: '.85rem', textAlign: 'center', marginTop: '8px' } }, 'جارٍ تحميل الفيديو…');
+  const v = h('video', { controls: '', autoplay: '', playsinline: '', preload: 'auto', style: { width: '100%', borderRadius: '12px', background: '#000', aspectRatio: '16/9' } });
+  v.src = VIDEO_BASE + encodeURIComponent(lesson.id) + '.mp4';
+  v.addEventListener('playing', () => { msg.textContent = 'اضغط ⛶ لملء الشاشة، ويمكنك الإيقاف والتقديم في أي وقت.'; });
+  v.addEventListener('timeupdate', () => { activity(); });
+  v.addEventListener('error', () => { msg.textContent = 'تعذّر تشغيل الفيديو. تأكد من اتصال الإنترنت، أو أن فيديو هذا الدرس لم يُجهّز بعد.'; });
+  const close = () => { v.pause(); v.removeAttribute('src'); v.load(); overlay.remove(); document.removeEventListener('backbutton', close); };
+  const box = h('div', { class: 'card', style: { width: 'min(960px, 100%)', padding: '12px', margin: 0 } },
+    h('div', { class: 'row between', style: { marginBottom: '8px' } }, h('b', {}, '🎬 ' + lesson.title), h('button', { class: 'btn small', onclick: close }, '✕ إغلاق')),
+    v, msg);
+  const overlay = h('div', { class: 'overlay' }, box);
+  overlay.__close = close;
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  document.body.appendChild(overlay);
+}
+
 export function renderLesson(app, id, isExam = false) {
   cleanup();
   const lesson = isExam ? LEVELS.find(l => l.n === +id)?.exam : lessonById(id);
@@ -57,6 +78,7 @@ export function renderLesson(app, id, isExam = false) {
   ));
   if (!isExam) app.append(h('div', { class: 'muted', style: { fontSize: '.85rem', marginTop: '-8px', marginBottom: '10px' } }, `المستوى ${lesson.level} · ${lesson.unit}`));
   if (lesson.goal) app.append(h('div', { class: 'goal' }, h('b', {}, 'الهدف: '), lesson.goal));
+  if (!isExam) app.append(h('button', { class: 'btn primary video-btn', onclick: () => openLessonVideo(lesson) }, '🎬 شاهد فيديو الدرس (شرح بالصوت والرسومات)'));
 
   // أصوات اللجنة
   if (lesson.voices) {

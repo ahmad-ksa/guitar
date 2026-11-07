@@ -1,0 +1,87 @@
+name: فيديوهات الدروس
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['www/js/lessons/**', 'www/video/**', 'tools/render_videos.py', '.github/workflows/videos.yml']
+permissions:
+  contents: write
+concurrency: { group: videos, cancel-in-progress: false }
+jobs:
+  voices:
+    runs-on: ubuntu-latest
+    outputs:
+      key: ${{ steps.k.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: node tools/voice-list.mjs voice-list.json --video
+      - id: k
+        run: echo "key=voice-video-${{ hashFiles('voice-list.json') }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: www/audio/voice
+          key: ${{ steps.k.outputs.key }}
+          restore-keys: |
+            voice-video-
+            voice-hamed-
+      - run: pip install edge-tts && python tools/gen_voice.py voice-list.json www/audio/voice ar-SA-HamedNeural
+
+  render:
+    needs: voices
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: { shard: [0, 1, 2, 3, 4, 5, 6, 7] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/cache/restore@v4
+        with:
+          path: www/audio/voice
+          key: ${{ needs.voices.outputs.key }}
+          fail-on-cache-miss: true
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - name: الإصدار الحالي للفيديوهات
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          mkdir -p out
+          gh release view videos >/dev/null 2>&1 || gh release create videos --prerelease --title "فيديوهات الدروس" --notes "فيديو شرح لكل درس" || true
+          gh release download videos -p manifest.json -D out || echo '{}' > out/manifest.json
+      - name: رسم الفيديوهات
+        run: |
+          (cd www && python -m http.server 8765 >/dev/null 2>&1 &)
+          sleep 2
+          python tools/render_videos.py out all --remote --shard ${{ matrix.shard }}/8
+      - name: رفع الفيديوهات
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          ls out/*.mp4 >/dev/null 2>&1 && gh release upload videos out/*.mp4 --clobber || echo "لا جديد"
+          [ -f out/rendered.json ] || echo '{}' > out/rendered.json
+      - uses: actions/upload-artifact@v4
+        with: { name: 'rendered-${{ matrix.shard }}', path: out/rendered.json }
+
+  manifest:
+    needs: render
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { pattern: 'rendered-*', path: parts }
+      - name: دمج قائمة الفيديوهات
+        env: { GH_TOKEN: '${{ github.token }}', GH_REPO: '${{ github.repository }}' }
+        run: |
+          mkdir -p base && (gh release download videos -p manifest.json -D base --clobber || echo '{}' > base/manifest.json)
+          python3 - <<'PY'
+          import json, glob
+          m = json.load(open('base/manifest.json'))
+          for f in glob.glob('parts/*/rendered.json'): m.update(json.load(open(f)))
+          json.dump(m, open('manifest.json', 'w'), indent=1)
+          print(len(m), 'videos')
+          PY
+          gh release upload videos manifest.json --clobber

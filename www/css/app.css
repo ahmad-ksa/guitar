@@ -224,3 +224,4 @@ body.light .hero { color: #f6ead9; }
 .artist-av { width: 40px; height: 40px; border-radius: 50%; background: var(--card2); display: grid; place-items: center; font-weight: 800; color: var(--accent); flex: none; }
 .fb-dot.target circle { stroke: var(--chord); stroke-width: 4; animation: targetPulse 1s ease-in-out infinite; }
 @keyframes targetPulse { 50% { stroke-width: 7; } }
+.video-btn { width: 100%; margin: 0 0 14px; font-size: 1rem; }

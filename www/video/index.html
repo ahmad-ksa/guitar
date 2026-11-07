@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>فيديو الدرس</title>
+<style>
+@font-face { font-family: 'Noto Kufi Arabic'; src: url('fonts/NotoKufiArabic.ttf') format('truetype'); font-weight: 100 900; }
+html,body { margin:0; background:#000; }
+canvas { display:block; width:1280px; height:720px; }
+</style></head>
+<body><canvas id="cv" width="1280" height="720"></canvas>
+<script type="module">
+import './render.js';
+window.videoReady = true;
+// معاينة يدوية: index.html?l=1-01&t=12
+const q = new URLSearchParams(location.search);
+if (q.get('l')) window.videoPrepare(q.get('l')).then(() => window.videoFrame(+(q.get('t') || 3)));
+</script></body></html>

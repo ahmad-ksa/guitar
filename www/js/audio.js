@@ -17,8 +17,20 @@ export function getCtx() {
     master.gain.value = 0.9;
     master.connect(comp); comp.connect(ctx.destination);
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  if (ctx.state === 'suspended' && !(typeof OfflineAudioContext !== 'undefined' && ctx instanceof OfflineAudioContext)) ctx.resume();
   return ctx;
+}
+
+// تسجيل صوت دون تشغيله (لصناعة فيديو الدروس): كل pluck/drum داخل fn يُكتب في ملف صوت
+export async function renderOffline(seconds, sr, fn) {
+  const saved = { ctx, master, comp, noiseBuf };
+  const off = new OfflineAudioContext(1, Math.ceil(seconds * sr), sr);
+  const m = off.createGain(); m.gain.value = 0.9;
+  const cp = off.createDynamicsCompressor(); cp.threshold.value = -14; cp.knee.value = 12; cp.ratio.value = 4;
+  m.connect(cp); cp.connect(off.destination);
+  ctx = off; master = m; comp = cp; noiseBuf = null; cache.clear();
+  try { fn(off, m); } finally { ctx = saved.ctx; master = saved.master; comp = saved.comp; noiseBuf = saved.noiseBuf; cache.clear(); }
+  return off.startRendering();
 }
 
 export function now() { return getCtx().currentTime; }
