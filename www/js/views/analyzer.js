@@ -7,7 +7,7 @@ import { SR, tonicFromQ, trackPitch, analyzeFrames, FRAME, HOP } from '../maqam-
 import { ALL } from '../lessons/index.js';
 import * as store from '../store.js';
 import { activity } from '../screen.js';
-import { playAlong, melodyOnFretboard, accompaniment, stopPracticeTools } from './practice-tools.js';
+import { playAlong, melodyOnFretboard, accompaniment, stopPracticeTools, songTrainer } from './practice-tools.js';
 
 let state = { worker: null, stream: null, proc: null, audio: null, url: null, live: null };
 export function cleanup() {
@@ -236,6 +236,7 @@ export function renderAnalyzer(app, openSongId = null) {
         w.postMessage({ x, deep }, [x.buffer]);
       });
       results.innerHTML = '';
+      if (res.ok) res.startOffset = start;
       if (deep && res.ok && res.deep) showDeep(res);
       showResults(res);
     } catch (e) {
@@ -388,6 +389,7 @@ export function renderAnalyzer(app, openSongId = null) {
     results.append(card('حوّل الأغنية إلى تدريب',
       h('div', { class: 'row' },
         tbtn('🎸 اعزف معي', () => playAlong(toolHost, { id: b.id, q: b.q, tuning: res.tuningOffset })),
+        res.notes && res.notes.length ? tbtn('🎯 درّبني على اللحن', () => songTrainer(toolHost, res, b, saved ? null : state.url)) : null,
         res.notes && res.notes.length ? tbtn('🎼 اللحن على الزند', () => melodyOnFretboard(toolHost, res, b)) : null,
         tbtn('🥁 رافقني', () => accompaniment(toolHost, b, res.bpm)),
         saveBtn, delBtn), savedLine), toolHost);

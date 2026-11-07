@@ -123,18 +123,16 @@ export function playAlong(host, ctx) {
 
 // ===================== اللحن على الزند =====================
 // يحوّل نوتات اللحن إلى مواضع على الجيتار ويعزفها ببطء مع الإضاءة
-export function melodyOnFretboard(host, res, best) {
-  host.innerHTML = '';
+// يحوّل نوتات اللحن إلى مواضع على الجيتار بأقل حركة لليد (t نسبي لأول نوتة، t0 = زمن أول نوتة في المقطع)
+export function mapMelody(res) {
   const notes = (res.notes || []).filter(n => n.d >= 0.1);
-  if (notes.length < 4) { host.append(card(null, h('p', {}, 'لم أجد نوتات كافية لتحويلها إلى تمرين.'))); return; }
-  // مدى الجيتار: انقل اللحن بالأوكتافات ليقع بين مي2 ومي5 تقريباً
+  if (notes.length < 4) return null;
   const qs = notes.map(n => Math.round(n.c / 50));
   const sorted = [...qs].sort((a, b) => a - b);
   const med = sorted[Math.floor(sorted.length / 2)];
   let shift = 0;
   while (med + shift > 2 * 67) shift -= 24;
   while (med + shift < 2 * 52) shift += 24;
-  // اختيار المواضع بأقل حركة لليد
   let hand = null;
   const pos = qs.map(q0 => {
     const q = q0 + shift;
@@ -154,7 +152,22 @@ export function melodyOnFretboard(host, res, best) {
   });
   const t0 = notes[0].t;
   const events = [];
-  notes.forEach((n, i) => { if (pos[i]) events.push({ ...pos[i], t: n.t - t0, d: Math.min(n.d, 2) }); });
+  notes.forEach((n, i) => { if (pos[i]) events.push({ ...pos[i], t: n.t - t0, d: Math.min(n.d, 2), src: n.t }); });
+  return { events, t0 };
+}
+
+function dotLabel(e, best) {
+  const t = tq(best.q);
+  const rel = Math.round((((e.q * 50 - best.q * 50) % 1200) + 1200) % 1200 / 50) * 50;
+  const d = degIndex(best.id, rel);
+  return { kind: d === 0 ? 'root' : (e.qt ? 'quarter' : 'note'), label: noteLabel(t, rel, d) };
+}
+
+export function melodyOnFretboard(host, res, best) {
+  host.innerHTML = '';
+  const mm = mapMelody(res);
+  if (!mm) { host.append(card(null, h('p', {}, 'لم أجد نوتات كافية لتحويلها إلى تمرين.'))); return; }
+  const events = mm.events;
   const frets = events.map(e => e.f);
   const from = Math.max(0, Math.min(...frets) - 1), to = Math.max(from + 7, Math.max(...frets) + 1);
   const t = tq(best.q);
@@ -214,4 +227,166 @@ export function accompaniment(host, best, bpm0) {
       while (next < c.currentTime + 0.15) { const ch = r.pattern[idx % r.pattern.length]; if (ch !== '.') drum(ch, next, 0.7); next += slot; idx++; }
     }, 25);
   });
+}
+
+// ===================== مدرّب لحن الأغنية =====================
+// يقسم اللحن إلى جمل: اسمع الأصل ← شاهد على الزند ← اعزف أنت، والتطبيق ينتظرك على كل نوتة
+export function songTrainer(host, res, best, audioUrl = null) {
+  host.innerHTML = '';
+  const mm = mapMelody(res);
+  if (!mm) { host.append(card(null, h('p', {}, 'لم أجد لحناً واضحاً كافياً لبناء تدريب. جرّب مقطعاً فيه غناء أو عزف منفرد واضح.'))); return; }
+  const ev = mm.events;
+  // تقسيم إلى جمل: عند سكتة أطول من 0.35 ث أو بعد 10 نوتات
+  const phrases = [];
+  let cur = [];
+  ev.forEach((e, i) => {
+    cur.push(e);
+    const next = ev[i + 1];
+    const gap = next ? next.t - (e.t + e.d) : 1;
+    if (gap > 0.35 || cur.length >= 10 || !next) { phrases.push(cur); cur = []; }
+  });
+  // دمج الجمل القصيرة جداً مع التي قبلها
+  for (let i = 1; i < phrases.length; i++) if (phrases[i].length < 3 && phrases[i - 1].length + phrases[i].length <= 12) { phrases[i - 1].push(...phrases[i]); phrases.splice(i, 1); i--; }
+  const offset = res.startOffset || 0;
+  let pi = 0, speed = 0.7, labelMode = 'order';
+  const scores = phrases.map(() => null);
+  const player = new Player(null, { metronome: false, countIn: false });
+  let audio = null;
+  const stopAudio = () => { if (audio) { audio.pause(); audio = null; } };
+
+  const title = h('div', { class: 'row between' });
+  const dots = h('div', { class: 'stepdots', style: { margin: '6px 0' } });
+  const fbh = h('div');
+  const msg = h('div', { class: 'subtitle' });
+  const seq = h('div', { class: 'row', style: { gap: '4px', direction: 'ltr', justifyContent: 'center', margin: '6px 0' } });
+  const listenOrig = h('button', { class: 'btn' }, '🎧 اسمع من الأغنية');
+  const listenGtr = h('button', { class: 'btn' }, '🎸 بصوت الجيتار');
+  const yourTurn = h('button', { class: 'btn primary' }, '🎤 دورك: اعزفها');
+  const prevB = h('button', { class: 'btn small' }, '→ السابقة');
+  const nextB = h('button', { class: 'btn small' }, 'التالية ←');
+  const labSeg = h('div', { class: 'seg' }, [['order', 'الترتيب'], ['note', 'النوتة']].map(([k, l]) =>
+    h('button', { class: k === labelMode ? 'on' : '', onclick: e => { labelMode = k; labSeg.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.target.classList.add('on'); draw(); } }, l)));
+  host.append(card('🎯 تدريب على لحن الأغنية',
+    h('p', { class: 'muted', style: { fontSize: '.85rem' } }, `قسّمت اللحن إلى ${phrases.length === 1 ? 'جملة واحدة' : phrases.length === 2 ? 'جملتين' : phrases.length <= 10 ? phrases.length + ' جمل' : phrases.length + ' جملة'}. لكل جملة: اسمعها، شاهدها على الزند، ثم اعزفها وأنا أنتظرك على كل نوتة.`),
+    title, dots, msg, h('div', { class: 'row' }, labSeg), fbh, seq,
+    slider('سرعة العرض', 0.3, 1.2, 0.05, speed, v => { speed = v; }, v => `${Math.round(v * 100)}%`),
+    h('div', { class: 'row' }, listenOrig, listenGtr), h('div', { class: 'row', style: { marginTop: '8px' } }, yourTurn),
+    h('div', { class: 'row between', style: { marginTop: '10px' } }, prevB, nextB)));
+  if (!audioUrl) { listenOrig.disabled = true; listenOrig.title = 'متاح عند رفع ملف'; }
+
+  let fb = null;
+  function draw() {
+    stopListen(); player.stop(); stopAudio();
+    const ph = phrases[pi];
+    title.innerHTML = '';
+    title.append(h('b', {}, `الجملة ${pi + 1} من ${phrases.length}`), h('span', { class: 'muted' }, `${ph.length} نوتات`));
+    dots.innerHTML = '';
+    phrases.forEach((_, i) => dots.append(h('i', { class: i === pi ? 'on' : (scores[i] != null ? 'seen' : '') })));
+    msg.textContent = scores[pi] != null ? `نتيجتك السابقة في هذه الجملة: ${scores[pi]}%` : 'ابدأ بالاستماع، ثم اضغط «دورك».';
+    const frets = ph.map(e => e.f);
+    const from = Math.max(0, Math.min(...frets) - 1), to = Math.max(from + 6, Math.max(...frets) + 1);
+    fbh.innerHTML = '';
+    fb = new Fretboard(fbh, { from, to });
+    const seen = new Map();
+    ph.forEach((e, i) => { const k = `${e.s}:${e.f}:${e.qt}`; if (!seen.has(k)) seen.set(k, { e, order: [] }); seen.get(k).order.push(i + 1); });
+    fb.setDots([...seen.values()].map(({ e, order }) => ({ ...e, ...dotLabel(e, best), ...(labelMode === 'order' ? { label: order.slice(0, 2).join('،') } : {}) })));
+    player.setBoard(fb);
+    seq.innerHTML = '';
+    ph.forEach((e, i) => seq.append(h('span', { class: 'pill', 'data-i': i }, dotLabel(e, best).label)));
+    prevB.disabled = pi === 0; nextB.disabled = pi === phrases.length - 1;
+  }
+  listenGtr.addEventListener('click', () => {
+    stopListen(); stopAudio();
+    const ph = phrases[pi]; const t0 = ph[0].t;
+    player.play({ events: ph.map(e => ({ ...e, t: e.t - t0 })), beats: ph[ph.length - 1].t - t0 + ph[ph.length - 1].d + 0.5 }, 60 * speed, { metronome: false, countIn: false });
+  });
+  listenOrig.addEventListener('click', () => {
+    if (!audioUrl) return;
+    stopListen(); player.stop(); stopAudio();
+    const ph = phrases[pi];
+    const a0 = offset + ph[0].src - 0.15, a1 = offset + ph[ph.length - 1].src + ph[ph.length - 1].d + 0.3;
+    const a = new Audio(audioUrl); audio = a;
+    a.currentTime = Math.max(0, a0);
+    try { a.preservesPitch = true; } catch (e) {}
+    a.playbackRate = Math.max(0.5, speed);
+    a.play();
+    const tick = () => { if (audio !== a) return; if (a.currentTime >= a1) { stopAudio(); } else requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+  prevB.addEventListener('click', () => { if (pi > 0) { pi--; draw(); } });
+  nextB.addEventListener('click', () => { if (pi < phrases.length - 1) { pi++; draw(); } });
+
+  // ===== وضع «دورك»: ينتظر كل نوتة =====
+  let stream = null, raf = 0, an = null, buf = null;
+  function stopListen() {
+    cancelAnimationFrame(raf);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null; yourTurn.textContent = '🎤 دورك: اعزفها';
+    fbh.querySelectorAll('.fb-dot.target').forEach(d => d.classList.remove('target'));
+  }
+  active.push(() => { stopListen(); player.stop(); stopAudio(); });
+  yourTurn.addEventListener('click', async () => {
+    if (stream) { stopListen(); return; }
+    player.stop(); stopAudio();
+    try {
+      const c = getCtx();
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const src = c.createMediaStreamSource(stream);
+      an = c.createAnalyser(); an.fftSize = 4096; src.connect(an);
+      buf = new Float32Array(an.fftSize);
+    } catch (e) { msg.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; return; }
+    yourTurn.textContent = '■ أوقف';
+    const ph = phrases[pi];
+    let k = 0, misses = 0, firstTry = 0, missedThis = false, stableQ = null, stableSince = 0, lastJudged = null;
+    const pills = seq.querySelectorAll('.pill');
+    const markTarget = () => {
+      fbh.querySelectorAll('.fb-dot.target').forEach(d => d.classList.remove('target'));
+      const e = ph[k]; if (!e) return;
+      const g = fb.dots.get(`${e.s}:${e.f}:${e.qt ? 1 : 0}`); if (g) g.classList.add('target');
+      pills.forEach((p, i) => { p.style.outline = i === k ? '2px solid var(--accent)' : ''; });
+      msg.textContent = `اعزف النوتة ${k + 1}: ${dotLabel(e, best).label} — الوتر ${6 - e.s}، الفرت ${e.f}${e.qt ? ' مع بِند ربع تون' : ''}`;
+    };
+    markTarget();
+    const loop = () => {
+      an.getFloatTimeDomainData(buf);
+      const r = detectPitch(buf, getCtx().sampleRate);
+      const now = performance.now();
+      if (r && r.clarity > 0.85 && r.freq > 70 && r.freq < 1400) {
+        const cents = 1200 * Math.log2(r.freq / 440) + 6900;
+        const qn = Math.round(cents / 50);
+        if (stableQ === null || Math.abs(qn - stableQ) > 0) { stableQ = qn; stableSince = now; }
+        if (now - stableSince > 110 && lastJudged !== stableQ) {
+          lastJudged = stableQ;
+          const e = ph[k];
+          const diff = (((cents - e.q * 50) % 1200) + 1200) % 1200; // يقبل الأوكتاف الآخر
+          const d = diff > 600 ? diff - 1200 : diff;
+          if (Math.abs(d) <= 40) {
+            pills[k].classList.add('ok');
+            fb.flash(e, 0.3);
+            if (!missedThis) firstTry++;
+            k++; missedThis = false;
+            activity();
+            if (k >= ph.length) {
+              const score = Math.round(100 * firstTry / ph.length);
+              scores[pi] = Math.max(score, scores[pi] || 0);
+              stopListen();
+              msg.textContent = score >= 90 ? `ممتاز! 🎉 عزفت الجملة بدقة ${score}%` : score >= 60 ? `جيد! دقتك ${score}%. أعدها مرة لتثبيتها.` : `دقتك ${score}%. اسمعها مرة أخرى ببطء ثم أعد المحاولة.`;
+              dots.children[pi].className = 'seen';
+              if (pi < phrases.length - 1) msg.append(h('div', { style: { marginTop: '6px' } }, h('button', { class: 'btn small primary', onclick: () => { pi++; draw(); } }, 'الجملة التالية ←')));
+              else msg.append(h('div', { style: { marginTop: '6px' } }, `أنهيت كل الجمل! متوسط دقتك ${Math.round(scores.reduce((a, b) => a + (b || 0), 0) / phrases.length)}%.`));
+              return;
+            }
+            markTarget();
+          } else {
+            misses++; missedThis = true;
+            pills[k].style.borderColor = 'var(--bad)';
+            msg.textContent = `هذه ليست النوتة المطلوبة. المطلوب: ${dotLabel(e, best).label} — الوتر ${6 - e.s}، الفرت ${e.f}${e.qt ? ' مع بِند ربع تون' : ''}`;
+          }
+        }
+      } else if (!r) { stableQ = null; lastJudged = null; }
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+  });
+  draw();
 }

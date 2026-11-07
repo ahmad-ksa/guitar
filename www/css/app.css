@@ -222,3 +222,5 @@ body.light .hero { color: #f6ead9; }
 .modal { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; width: 100%; max-width: 420px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
 .artist-head { display: flex; align-items: center; gap: 10px; }
 .artist-av { width: 40px; height: 40px; border-radius: 50%; background: var(--card2); display: grid; place-items: center; font-weight: 800; color: var(--accent); flex: none; }
+.fb-dot.target circle { stroke: var(--chord); stroke-width: 4; animation: targetPulse 1s ease-in-out infinite; }
+@keyframes targetPulse { 50% { stroke-width: 7; } }
