@@ -5,7 +5,8 @@
 import asyncio, base64, hashlib, json, os, subprocess, sys, time
 from playwright.async_api import async_playwright
 
-args = [a for a in sys.argv[1:] if not a.startswith('--')]
+_VAL = {'--shard', '--base'}
+args = [a for i, a in enumerate(sys.argv[1:], 1) if not a.startswith('--') and sys.argv[i - 1] not in _VAL]
 OUT = args[0]; IDS = args[1:] or ['all']
 opt = lambda k, d=None: next((sys.argv[i + 1] for i, a in enumerate(sys.argv) if a == k and i + 1 < len(sys.argv)), d)
 BASE = opt('--base', 'http://localhost:8765')
