@@ -1,35 +1,22 @@
-name: عينة صوت SILMA
+name: عينات نطق قبل وبعد
 on: workflow_dispatch
 permissions:
   contents: write
 jobs:
   sample:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 soundfile --extra-index-url https://pypi.org/simple --index-url https://download.pytorch.org/whl/cpu
-      - run: pip install silma_tts edge-tts torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 --extra-index-url https://download.pytorch.org/whl/cpu && pip uninstall -y torchcodec || true
+      - run: pip install edge-tts
       - run: node tools/voice-list.mjs voice-list.json
-      - run: python tools/silma_sample.py voice-list.json samples
-      - name: edge-tts للمقارنة
-        run: |
-          python - <<'PY'
-          import json, asyncio, edge_tts
-          items = json.load(open('voice-list.json'))[:6]
-          async def go():
-              for i, it in enumerate(items):
-                  await edge_tts.Communicate(it['text'], 'ar-SA-HamedNeural').save(f'samples/hamed_{i}.mp3')
-          asyncio.run(go())
-          PY
+      - run: python tools/pron_sample.py voice-list.json samples
       - name: نشر العينات للاستماع
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete voice-samples --cleanup-tag -y || true
-          gh release create voice-samples samples/*.mp3 --prerelease --title "عينات صوت للمقارنة" --notes "silma_N = نموذج SILMA ، hamed_N = الصوت الحالي"
+          gh release create voice-samples samples/* --prerelease --title "عينات النطق: قبل وبعد" --notes "N_before = النطق الحالي ، N_after = بعد تصحيح النطق. نص كل جملة في sentences.txt"
