@@ -39,7 +39,7 @@ function route() {
   document.querySelectorAll('.overlay').forEach(o => (o.__close ? o.__close(null) : o.remove()));
   cleanLesson(); cleanExplore(); cleanTools(); cleanAnalyzer();
   const path = location.hash.replace(/^#\/?/, '');
-  const [p0, p1, p2, p3] = path.split('/');
+  const [p0, p1, p2, p3, p4] = path.split('/');
   app.innerHTML = '';
   window.scrollTo(0, 0);
   drawNav(path);
@@ -51,7 +51,7 @@ function route() {
       case 'lesson': renderLesson(app, p1); break;
       case 'exam': renderLesson(app, p1, true); break;
       case 'tools': app.append(h('div', { class: 'topbar' }, h('h1', {}, 'الأدوات'))); app.append(toolsGrid()); break;
-      case 'explore': renderExplore(app, p1 ? { kind: p1, id: p2, root: p3 } : {}); break;
+      case 'explore': renderExplore(app, p1 ? { kind: p1, id: p2, root: p3, view: p4 } : {}); break;
       case 'chords': renderChords(app); break;
       case 'tuner': renderTuner(app); break;
       case 'rhythm': renderRhythm(app); break;

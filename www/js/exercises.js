@@ -19,6 +19,20 @@ function scaleTones(scaleId, rootPc, rootQuarter = false, dir = 'asc') {
   return out.sort((a, b) => a.q - b.q);
 }
 
+// المقام على وتر واحد (العزف الأفقي): من القرار إلى جوابه على نفس الوتر
+// يرجع { up, down, top } ؛ down تستخدم سلم النزول إن وُجد
+export function stringPattern(scaleId, rootPc, s, { rootQuarter = false, maxFret = 22 } = {}) {
+  const len = scaleOffsets(scaleId).length;
+  const onStr = dir => scaleTones(scaleId, rootPc, rootQuarter, dir).map(t => ({ ...pos(s, t.q), deg: t.deg })).filter(p => p.f >= 0 && !(p.f === 0 && p.qt));
+  const asc = onStr('asc');
+  const r = asc.findIndex(p => p.deg === 0);
+  if (r < 0) return null;
+  const up = asc.slice(r, r + len + 1);
+  const lo = up[0].q, hi = up[up.length - 1].q;
+  const down = onStr('desc').filter(p => p.q >= lo && p.q <= hi).reverse();
+  return { up, down, top: Math.max(...up.map(p => p.f)), fits: up.length === len + 1 && hi - openQ(s) <= maxFret * 2 + 1 };
+}
+
 // نمط "عدد ثابت من النوتات لكل وتر" — يعطي صناديق البنتاتونيك و3NPS
 export function npsPattern(scaleId, rootPc, { nps = 3, box = 0, rootQuarter = false } = {}) {
   const tones = scaleTones(scaleId, rootPc, rootQuarter);
@@ -204,6 +218,9 @@ export function buildExercise(spec = {}) {
       const [s, f, qt = 0, extra = {}] = Array.isArray(n) ? n : [n.s, n.f, n.qt, n];
       return { s, f, qt, q: (OPEN_STRINGS[s] + f) * 2 + qt, ...extra };
     });
+  } else if (t === 'maqamString') { // مقام على وتر واحد صعوداً ونزولاً
+    const sp = stringPattern(scaleId, rootPc, spec.string ?? 5, { rootQuarter: rq });
+    positions = sp ? [...sp.up, ...sp.down.slice(1)].map(p => ({ ...p, dur: spec.dur || 0.5 })) : [];
   } else if (t === 'string') { // نوتات وتر واحد
     const s = spec.string;
     const nat = [0, 2, 4, 5, 7, 9, 11];
@@ -275,7 +292,7 @@ export function buildExercise(spec = {}) {
     if (spec.seq === 'threes') events = sequenceEvents(positions, 3, sub);
     else if (spec.seq === 'fours') events = sequenceEvents(positions, 4, sub);
     else if (spec.seq === 'thirds') events = sequenceEvents(positions, 2, sub, 'thirds');
-    else if (t === 'notes' && positions.some(p => p.dur)) {
+    else if ((t === 'notes' || t === 'maqamString') && positions.some(p => p.dur)) {
       let T = 0;
       events = positions.map(p => { const e = { ...p, t: T, d: p.dur }; T += p.dur; return e; });
     } else events = toEvents(positions, sub, spec.dir || (t === 'notes' ? 'up' : 'updown'));

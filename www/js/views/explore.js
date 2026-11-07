@@ -1,7 +1,7 @@
 // مستكشف السلالم والمقامات + مكتبة الكوردات
 import { h, select, slider, toggle, card } from '../ui.js';
 import { Fretboard, chordDiagram, voicingFreqs } from '../fretboard.js';
-import { allPositions, windowPattern, npsPattern, labelFor, assignFingers } from '../exercises.js';
+import { allPositions, windowPattern, npsPattern, labelFor, assignFingers, stringPattern } from '../exercises.js';
 import { SCALES, MAQAMAT, MAQAM_CHARACTER, ROOTS, getScale, scaleOffsets, CHORD_TYPES, chordVoicings, chordName, chordNameInKey, chordNotes, pcName, noteName, rootQ, diatonicChords, spelledName } from '../theory.js';
 import { Player } from '../player.js';
 import { strum, pluck, droneStart, droneStop } from '../audio.js';
@@ -14,7 +14,7 @@ export function cleanup() { if (player) player.stop(); droneStop(); }
 
 export function renderExplore(app, params = {}) {
   cleanup();
-  const st = { kind: params.kind || 'scale', id: params.id || 'major', root: params.root != null ? +params.root : 0, label: store.settings().label || 'note', view: 'all', box: 0, bpm: 90, drone: false };
+  const st = { kind: params.kind || 'scale', id: params.id || 'major', root: params.root != null ? +params.root : 0, label: store.settings().label || 'note', view: ['all', 'pos', 'box', 'string'].includes(params.view) ? params.view : 'all', box: 0, str: 5, bpm: 90, drone: false };
   if (st.kind === 'maqam' && !MAQAMAT[st.id]) st.id = 'bayati';
   if (st.kind === 'scale' && !SCALES[st.id]) st.id = 'major';
   if (st.kind !== 'scale' && st.kind !== 'maqam') { st.kind = 'scale'; st.id = 'major'; }
@@ -36,6 +36,12 @@ export function renderExplore(app, params = {}) {
   function positions() {
     const n = scaleOffsets(st.id).length;
     if (st.view === 'all') return allPositions(st.id, st.root, 0, 15, { rootQuarter: rq() });
+    if (st.view === 'string') {
+      const sp = stringPattern(st.id, st.root, st.str, { rootQuarter: rq() });
+      if (!sp) return [];
+      const m = new Map(); [...sp.up, ...sp.down].forEach(p => m.set(p.q, p));
+      return [...m.values()].sort((a, b) => a.q - b.q);
+    }
     if (st.view === 'box') return npsPattern(st.id, st.root, { nps: n === 5 ? 2 : 3, box: st.box, rootQuarter: rq() });
     // موضع: نافذة حول القرار على الوتر 5 أو 6
     const r6 = ((st.root - 4) % 12 + 12) % 12;
@@ -49,7 +55,7 @@ export function renderExplore(app, params = {}) {
       h('button', { class: st.kind === k ? 'on' : '', onclick: () => { st.kind = k; st.id = k === 'scale' ? 'major' : 'bayati'; st.root = k === 'scale' ? 0 : MAQAMAT.bayati.root; st.box = 0; draw(); } }, l)));
     const sSel = select(scaleOpts(), st.id, v => { st.id = v; if (st.kind === 'maqam') st.root = MAQAMAT[v].root; st.box = 0; draw(); });
     const rSel = select(ROOTS.map(r => ({ value: r.pc, label: rq() && r.pc === st.root ? pcName(r.pc) + ' ½' : pcName(r.pc) })), st.root, v => { st.root = +v; draw(); });
-    const viewSeg = h('div', { class: 'seg' }, [['all', 'الزند كاملاً'], ['pos', 'موضع'], ['box', 'صناديق']].map(([k, l]) =>
+    const viewSeg = h('div', { class: 'seg' }, [['all', 'الزند كاملاً'], ['pos', 'موضع'], ['box', 'صناديق'], ['string', 'وتر واحد']].map(([k, l]) =>
       h('button', { class: st.view === k ? 'on' : '', onclick: () => { st.view = k; draw(); } }, l)));
     const labSeg = h('div', { class: 'seg' }, [['note', 'النوتة'], ['degree', 'الدرجة'], ['finger', 'الإصبع']].map(([k, l]) =>
       h('button', { class: st.label === k ? 'on' : '', onclick: () => { st.label = k; draw(); } }, l)));
@@ -61,10 +67,16 @@ export function renderExplore(app, params = {}) {
         h('div', { class: 'seg' }, [...Array(n)].map((_, i) => h('button', { class: st.box === i ? 'on' : '', onclick: () => { st.box = i; draw(); } }, i + 1)))));
     }
 
+    let sp = null;
+    if (st.view === 'string') {
+      controls.append(h('div', { class: 'row', style: { marginTop: '8px' } }, h('span', { class: 'muted' }, 'الوتر:'),
+        h('div', { class: 'seg' }, [5, 4, 3, 2, 1, 0].map(s => h('button', { class: st.str === s ? 'on' : '', onclick: () => { st.str = s; draw(); } }, 6 - s)))));
+      sp = stringPattern(st.id, st.root, st.str, { rootQuarter: rq() });
+    }
     let ps = positions();
     if (st.label === 'finger') ps = assignFingers(ps);
-    const from = st.view === 'all' ? 0 : Math.max(0, Math.min(...ps.map(p => p.f)) - 1);
-    const to = st.view === 'all' ? 15 : Math.max(from + 6, Math.max(...ps.map(p => p.f)) + 1);
+    const from = st.view === 'all' ? 0 : st.view === 'string' ? 0 : Math.max(0, Math.min(...ps.map(p => p.f)) - 1);
+    const to = st.view === 'all' ? 15 : st.view === 'string' ? Math.min(24, Math.max(12, Math.max(...ps.map(p => p.f)) + 1)) : Math.max(from + 6, Math.max(...ps.map(p => p.f)) + 1);
     boardHost.innerHTML = '';
     const bh = h('div');
     boardHost.append(bh);
@@ -73,6 +85,11 @@ export function renderExplore(app, params = {}) {
     player.setBoard(board);
     const playBtn = h('button', { class: 'btn primary' }, '▶ اعزف');
     playBtn.addEventListener('click', async () => {
+      if (st.view === 'string' && sp) {
+        const evs = [...sp.up, ...sp.down.slice(1)].map((p, i) => ({ ...p, t: i / 2, d: 0.5 }));
+        await player.play({ events: evs, beats: evs.length / 2 + 1 }, st.bpm, { metronome: false, countIn: false, drone: st.drone ? rootQ(st.root, rq(), 36) : null });
+        return;
+      }
       const seq = st.view === 'all' ? windowPattern(st.id, st.root, Math.max(0, from), Math.max(0, from) + 4, { rootQuarter: rq() }) : ps;
       const sorted = [...seq].sort((a, b) => a.q - b.q);
       const uniq = sorted.filter((p, i) => i === 0 || p.q !== sorted[i - 1].q);
@@ -85,6 +102,7 @@ export function renderExplore(app, params = {}) {
     ), slider('السرعة', 40, 200, 1, st.bpm, v => { st.bpm = v; }, v => `${v} BPM`),
     h('p', { class: 'muted', style: { fontSize: '.8rem', margin: '6px 0 0' } }, 'اضغط على أي نقطة في الزند لسماعها. اسحب الزند يميناً ويساراً لرؤية بقية الفرتات.'));
 
+    if (st.view === 'string' && sp) boardHost.append(stringInfo(sp, st.str));
     // معلومات
     info.innerHTML = '';
     const sc = getScale(st.id);
@@ -151,4 +169,23 @@ export function renderChords(app, params = {}) {
   }
   draw();
 }
+// شرح العزف على وتر واحد: المسافة بالفرتات بين كل نوتة والتي تليها
+function fretWord(dq) { return { 1: '½ فرت', 2: 'فرت', 3: 'فرت ونصف', 4: 'فرتان', 5: 'فرتان ونصف', 6: '3 فرتات' }[dq] || `${dq / 2} فرت`; }
+function stringInfo(sp, s) {
+  const fr = p => `${p.f}${p.qt ? '¼' : ''}`;
+  const chips = [];
+  sp.up.forEach((p, i) => {
+    chips.push(h('span', { class: 'pill' + (p.deg === 0 ? ' ok' : '') }, fr(p)));
+    if (i < sp.up.length - 1) chips.push(h('span', { class: 'muted', style: { fontSize: '.75rem' } }, `← ${fretWord(sp.up[i + 1].q - p.q)} →`));
+  });
+  const name = ['السادس (الغليظ)', 'الخامس', 'الرابع', 'الثالث', 'الثاني', 'الأول (الرفيع)'][s];
+  return card(null,
+    h('h3', { style: { margin: '0 0 6px' } }, `🎯 العزف الأفقي على الوتر ${name}`),
+    h('p', { class: 'muted', style: { fontSize: '.85rem', margin: '0 0 8px' } }, 'كل المقام على وتر واحد بإصبع ينزلق صعوداً ونزولاً. الأرقام هي الفرتات، وبينها المسافة: الفرت = نصف تون، ونصف الفرت (¼) = ربع تون بالبِند.'),
+    h('div', { class: 'row', style: { gap: '4px', alignItems: 'center', direction: 'ltr', flexWrap: 'wrap' } }, chips),
+    sp.down.some((p, i) => p.q !== [...sp.up].reverse()[i]?.q) ? h('p', { style: { fontSize: '.85rem', marginTop: '8px' } }, 'نزولاً يتغير: ', h('span', { class: 'ltr' }, sp.down.map(fr).join(' ← '))) : null,
+    !sp.fits ? h('p', { style: { fontSize: '.85rem', color: 'var(--quarter)', marginTop: '8px' } }, `الجواب يصل للفرت ${sp.top}، وهذا عالٍ على أغلب الجيتارات. جرّب وتراً أغلظ أو قراراً آخر.`) : null,
+    h('p', { class: 'muted', style: { fontSize: '.8rem', marginTop: '8px' } }, 'نصيحة: العزف الأفقي يعلّمك «شكل» المسافات بأذنك وعينك، وهو قريب من طريقة العود. ادمجه مع الصناديق: اصعد على وتر واحد ثم انتقل لصندوق.'));
+}
+
 function ivLabel(iv) { return { 0: '1', 2: '2', 3: 'b3', 4: '3', 5: '4', 6: 'b5', 7: '5', 8: '#5', 9: '6', 10: 'b7', 11: '7', 14: '9' }[iv] || ''; }
