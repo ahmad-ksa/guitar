@@ -161,6 +161,54 @@ export function playAlong(host, ctx) {
 // ===================== اللحن على الزند =====================
 // يحوّل نوتات اللحن إلى مواضع على الجيتار ويعزفها ببطء مع الإضاءة
 // يحوّل نوتات اللحن إلى مواضع على الجيتار بأقل حركة لليد (t نسبي لأول نوتة، t0 = زمن أول نوتة في المقطع)
+// اختيار أصابع ذكي (Viterbi): لكل نوتة عدة أماكن على الزند، نختار المسار
+// الذي يقلّل تحريك اليد وقفز الأوتار، ويفضّل البقاء في «منطقة» واحدة
+// (4 دساتين) ما أمكن، مع السماح بالانتقال عند الوقفات الطويلة
+export function fingerMelody(qs, notes = []) {
+  const cand = qs.map(q => {
+    const cs = [];
+    for (let s = 0; s < 6; s++) {
+      const fq = q - OPEN_STRINGS[s] * 2;
+      if (fq < 0 || fq > 34) continue;
+      const f = Math.floor(fq / 2), qt = fq % 2;
+      if (f === 0 && qt) continue;
+      cs.push({ s, f, qt, q });
+    }
+    return cs;
+  });
+  // الحالة = (مكان النوتة، وضع اليد h: الإصبع الأول على الدستان h، يغطي h..h+3)
+  const H = 15;
+  const reach = (c, h) => c.f === 0 ? 0 : (c.f >= h && c.f <= h + 3) ? 0 : (c.f === h - 1 || c.f === h + 4) ? 0.6 : Infinity;
+  const emit = (c, h) => reach(c, h) + 0.03 * h + (h > 12 ? 0.3 * (h - 12) : 0) + (c.f === 0 ? 0.05 : 0);
+  const trans = (a, b, h1, h2, gap) => {
+    const shift = h1 === h2 ? 0 : (0.8 + 0.25 * Math.abs(h1 - h2)) * (gap > 0.5 ? 0.4 : 1);
+    return shift + 0.08 * Math.abs(a.s - b.s);
+  };
+  const out = new Array(qs.length).fill(null);
+  let i = 0;
+  while (i < qs.length) {
+    if (!cand[i].length) { i++; continue; }
+    let j = i; while (j < qs.length && cand[j].length) j++;
+    const st = k => { const r = []; cand[k].forEach((c, ci) => { for (let h = 1; h <= H; h++) if (reach(c, h) < Infinity) r.push({ c, ci, h }); }); return r; };
+    let prev = st(i), cost = prev.map(x => emit(x.c, x.h));
+    const backs = [], states = [prev];
+    for (let k = i + 1; k < j; k++) {
+      const gap = notes[k] && notes[k - 1] ? notes[k].t - (notes[k - 1].t + notes[k - 1].d) : 0;
+      const cur = st(k), nc = new Array(cur.length), bk = new Array(cur.length);
+      cur.forEach((y, yi) => {
+        let best = Infinity, arg = 0;
+        prev.forEach((x, xi) => { const v = cost[xi] + trans(x.c, y.c, x.h, y.h, gap); if (v < best) { best = v; arg = xi; } });
+        nc[yi] = best + emit(y.c, y.h); bk[yi] = arg;
+      });
+      cost = nc; prev = cur; backs.push(bk); states.push(cur);
+    }
+    let idx = cost.indexOf(Math.min(...cost));
+    for (let k = j - 1; k >= i; k--) { const sx = states[k - i][idx]; out[k] = { ...sx.c, hand: sx.h }; if (k > i) idx = backs[k - i - 1][idx]; }
+    i = j;
+  }
+  return out;
+}
+
 export function mapMelody(res) {
   const notes = (res.notes || []).filter(n => n.d >= 0.1);
   if (notes.length < 4) return null;
@@ -170,23 +218,7 @@ export function mapMelody(res) {
   let shift = 0;
   while (med + shift > 2 * 67) shift -= 24;
   while (med + shift < 2 * 52) shift += 24;
-  let hand = null;
-  const pos = qs.map(q0 => {
-    const q = q0 + shift;
-    const cands = [];
-    for (let s = 0; s < 6; s++) {
-      const fq = q - OPEN_STRINGS[s] * 2;
-      if (fq < 0 || fq > 34) continue;
-      const f = Math.floor(fq / 2), qt = fq % 2;
-      if (f === 0 && qt) continue;
-      cands.push({ s, f, qt, q });
-    }
-    if (!cands.length) return null;
-    if (hand == null) hand = Math.min(...cands.map(c => c.f)) + 1;
-    const pick = cands.reduce((a, c) => (Math.abs(c.f - hand) + (c.f === 0 ? 0.5 : 0) < Math.abs(a.f - hand) + (a.f === 0 ? 0.5 : 0) ? c : a));
-    if (pick.f > 0) hand = hand * 0.6 + pick.f * 0.4;
-    return pick;
-  });
+  const pos = fingerMelody(qs.map(q => q + shift), notes);
   const t0 = notes[0].t;
   const events = [];
   notes.forEach((n, i) => { if (pos[i]) events.push({ ...pos[i], t: n.t - t0, d: Math.min(n.d, 2), src: n.t }); });
