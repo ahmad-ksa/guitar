@@ -1,9 +1,10 @@
 # توليد عينات صوتية بنموذج SILMA TTS (Apache-2.0) للمقارنة مع الصوت الحالي
-import json, sys, os, glob, importlib.util, subprocess
+import json, sys, os, glob, subprocess
+import silma_tts.api as api
 from silma_tts.api import SilmaTTS
 items = json.load(open(sys.argv[1]))
 out = sys.argv[2]; os.makedirs(out, exist_ok=True)
-pkg = os.path.dirname(importlib.util.find_spec('silma_tts').origin)
+pkg = os.path.dirname(os.path.abspath(api.__file__))
 refs = glob.glob(os.path.join(pkg, '**', '*ar*ref*.wav'), recursive=True) + glob.glob(os.path.join(pkg, '**', '*.wav'), recursive=True)
 print('refs', refs[:5])
 tts = SilmaTTS()
