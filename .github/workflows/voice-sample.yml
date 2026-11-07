@@ -1,5 +1,7 @@
 name: عينة صوت SILMA
 on: workflow_dispatch
+permissions:
+  contents: write
 jobs:
   sample:
     runs-on: ubuntu-latest
@@ -25,5 +27,9 @@ jobs:
                   await edge_tts.Communicate(it['text'], 'ar-SA-HamedNeural').save(f'samples/hamed_{i}.mp3')
           asyncio.run(go())
           PY
-      - uses: actions/upload-artifact@v4
-        with: { name: voice-samples, path: 'samples/*.mp3' }
+      - name: نشر العينات للاستماع
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete voice-samples --cleanup-tag -y || true
+          gh release create voice-samples samples/*.mp3 --prerelease --title "عينات صوت للمقارنة" --notes "silma_N = نموذج SILMA ، hamed_N = الصوت الحالي"
