@@ -64,23 +64,29 @@ export function playAlong(host, ctx) {
   redraw();
 
   let stream = null, raf = 0, an = null, buf = null, smooth = null, lastFlash = 0, lastKey = '';
+  let pending = false, dead = false;
   async function start() {
+    if (pending) return;
+    pending = true; btn.disabled = true;
     try {
       const c = getCtx();
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      pending = false; btn.disabled = false;
+      if (dead || !host.isConnected) { st.getTracks().forEach(t => t.stop()); return; }
+      stream = st;
       const src = c.createMediaStreamSource(stream);
       an = c.createAnalyser(); an.fftSize = 4096; src.connect(an);
       buf = new Float32Array(an.fftSize);
       btn.textContent = '■ أوقف';
       loop();
-    } catch (e) { info.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; }
+    } catch (e) { pending = false; btn.disabled = false; info.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; }
   }
   function stop() {
     cancelAnimationFrame(raf);
     if (stream) stream.getTracks().forEach(t => t.stop());
     stream = null; btn.textContent = '🎸 ابدأ: اعزف وأنا أسمعك';
   }
-  active.push(stop);
+  active.push(() => { dead = true; stop(); });
   function loop() {
     an.getFloatTimeDomainData(buf);
     const r = detectPitch(buf, getCtx().sampleRate);
@@ -224,6 +230,7 @@ export function accompaniment(host, best, bpm0) {
     timer = setInterval(() => {
       const r = RHYTHMS[rid];
       const slot = (60 / bpm) * r.slot;
+      if (next < c.currentTime) next = c.currentTime + 0.05;
       while (next < c.currentTime + 0.15) { const ch = r.pattern[idx % r.pattern.length]; if (ch !== '.') drum(ch, next, 0.7); next += slot; idx++; }
     }, 25);
   });
@@ -327,14 +334,19 @@ export function songTrainer(host, res, best, audioUrl = null) {
   active.push(() => { stopListen(); player.stop(); stopAudio(); });
   yourTurn.addEventListener('click', async () => {
     if (stream) { stopListen(); return; }
+    if (yourTurn.disabled) return;
     player.stop(); stopAudio();
+    yourTurn.disabled = true;
     try {
       const c = getCtx();
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      yourTurn.disabled = false;
+      if (!host.isConnected) { st.getTracks().forEach(t => t.stop()); return; }
+      stream = st;
       const src = c.createMediaStreamSource(stream);
       an = c.createAnalyser(); an.fftSize = 4096; src.connect(an);
       buf = new Float32Array(an.fftSize);
-    } catch (e) { msg.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; return; }
+    } catch (e) { yourTurn.disabled = false; msg.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; return; }
     yourTurn.textContent = '■ أوقف';
     const ph = phrases[pi];
     let k = 0, misses = 0, firstTry = 0, missedThis = false, stableQ = null, stableSince = 0, lastJudged = null;

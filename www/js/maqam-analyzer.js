@@ -168,33 +168,35 @@ export function analyzeFrames(frames, opts = {}) {
   const raw = cleanFrames(frames);
   const voiced = raw.filter(c => c != null).length;
   if (voiced < 40) return { ok: false, reason: 'لم أجد لحناً واضحاً في المقطع. جرّب جزءاً فيه غناء أو عزف منفرد واضح.' };
-  const off = tuningOffset(raw);
-  const cents = raw.map(c => (c == null ? null : c - off));
-  const notes = segmentNotes(cents, hopSec);
-  const h = histogram(cents);
-  // مدرّج نهايات الجمل: النوتات الطويلة أو التي يليها صمت
-  const fc = [], fw = [];
-  notes.forEach((n, k) => {
-    const isEnd = n.gapAfter >= 0.2 || k === notes.length - 1;
-    const w = (isEnd ? 1 : 0.05) * Math.min(2, n.dur) + (n.dur > 0.6 ? 0.4 * n.dur : 0);
-    fc.push(n.c); fw.push(w);
-  });
-  const finals = histogram(fc.length ? fc : cents, fc.length ? fw : null);
-
-  const sortedC = cents.filter(c => c != null).sort((a, b) => a - b);
-  const low = sortedC[Math.floor(sortedC.length * 0.15)];
-  const results = [];
-  for (let q = 0; q < 24; q++) {
-    const tonicC = q * 50;
-    for (const id of MAQAM_IDS) {
-      const m = MAQAMAT[id];
-      // القرار نصف بيمول مسموح فقط للمقامات التي قرارها كذلك، والعكس
-      const isQ = q % 2 === 1;
-      if (isQ !== !!m.rootQuarter) continue;
-      results.push({ id, q, score: scoreMaqam(h, finals, tonicC, id, low) });
+  const off0 = tuningOffset(raw);
+  // نجرّب الإزاحة المقدّرة والإزاحة المجاورة بنصف ربع تون (50 سنت)، لأن تسجيلاً منحرفاً
+  // عن 440 بأكثر من 25 سنت يجعل القرار يبدو نصف بيمول خطأً
+  const core = off => {
+    const cents = raw.map(c => (c == null ? null : c - off));
+    const notes = segmentNotes(cents, hopSec);
+    const h = histogram(cents);
+    const fc = [], fw = [];
+    notes.forEach((n, k) => {
+      const isEnd = n.gapAfter >= 0.2 || k === notes.length - 1;
+      fc.push(n.c); fw.push((isEnd ? 1 : 0.05) * Math.min(2, n.dur) + (n.dur > 0.6 ? 0.4 * n.dur : 0));
+    });
+    const finals = histogram(fc.length ? fc : cents, fc.length ? fw : null);
+    const sortedC = cents.filter(c => c != null).sort((a, b) => a - b);
+    const low = sortedC[Math.floor(sortedC.length * 0.15)];
+    const results = [];
+    for (let q = 0; q < 24; q++) for (const id of MAQAM_IDS) {
+      if ((q % 2 === 1) !== !!MAQAMAT[id].rootQuarter) continue;
+      results.push({ id, q, score: scoreMaqam(h, finals, q * 50, id, low) });
     }
-  }
-  results.sort((a, b) => b.score - a.score);
+    results.sort((a, b) => b.score - a.score);
+    return { off, cents, notes, h, results };
+  };
+  const A = core(off0), B = core(off0 >= 0 ? off0 - 50 : off0 + 50);
+  const C0 = B.results[0].score > A.results[0].score + 0.02 ? B : A;
+  const { off, cents, notes, h, results } = C0;
+  // رفض المدخلات التي ليست لحناً (نغمة ثابتة، طنين، مقطع قصير جداً)
+  const distinct = new Set(notes.filter(n => n.dur >= 0.12).map(n => Math.round(n.c / 50) % 24));
+  if (distinct.size < 4 || frames.length * hopSec < 5) return { ok: false, reason: 'المقطع قصير أو لا يحتوي لحناً متنوعاً كافياً لتحديد المقام. جرّب مقطعاً أطول فيه غناء أو عزف منفرد.' };
   // احتمالات (softmax)
   const top = results.slice(0, 40);
   const T = 0.045;
@@ -202,7 +204,6 @@ export function analyzeFrames(frames, opts = {}) {
   const ex = top.map(r => Math.exp((r.score - mx) / T));
   const sum = ex.reduce((a, b) => a + b, 0);
   top.forEach((r, i) => { r.prob = ex[i] / sum; });
-  // دمج: لا تكرر نفس المقام بقرارات مختلفة في القائمة
   const seen = new Set();
   const ranking = [];
   for (const r of top) { const k = r.id; if (seen.has(k)) continue; seen.add(k); ranking.push(r); if (ranking.length >= 5) break; }
@@ -297,15 +298,18 @@ export function deepAnalyzeFrames(frames) {
   const cand = new Set([mainKey]);
   W.forEach(w => { if (w.scores) [...w.scores].sort((a, b) => b[1] - a[1]).slice(0, 3).forEach(([k]) => cand.add(k)); });
   const C = [...cand];
-  const SWITCH = 0.22, MAIN_BIAS = 0.04;
-  const em = (w, k) => (w.scores ? w.scores.get(k) + (k === mainKey ? MAIN_BIAS : 0) : (k === mainKey ? 0.01 : 0));
+  // الانبعاث = لوغاريتم احتمال تقريبي داخل النافذة؛ التبديل مكلف حتى لا تُحسب جولة قصيرة حول الغماز تحويلاً
+  const SW_SAME = 1, SW_TONIC = 12, MAIN_BIAS = 0.2, TEMP = 0.12;
+  const qOfK = k => +k.split(':')[1];
+  W.forEach(w => { if (w.scores) w.max = Math.max(...w.scores.values()); });
+  const em = (w, k) => (w.scores ? Math.max(-12, (w.scores.get(k) - w.max) / TEMP) + (k === mainKey ? MAIN_BIAS : 0) : (k === mainKey ? 0.1 : 0));
   let prev = C.map(k => em(W[0], k));
   const back = [];
   for (let t = 1; t < W.length; t++) {
     const cur = [], bp = [];
     for (let j = 0; j < C.length; j++) {
       let best = -Infinity, arg = 0;
-      for (let i = 0; i < C.length; i++) { const v = prev[i] - (i === j ? 0 : SWITCH); if (v > best) { best = v; arg = i; } }
+      for (let i = 0; i < C.length; i++) { const v = prev[i] - (i === j ? 0 : (qOfK(C[i]) === qOfK(C[j]) ? SW_SAME : SW_TONIC)); if (v > best) { best = v; arg = i; } }
       cur.push(best + em(W[t], C[j])); bp.push(arg);
     }
     back.push(bp); prev = cur;
@@ -323,22 +327,34 @@ export function deepAnalyzeFrames(frames) {
     else segs.push({ key, start: t === 0 ? 0 : (w.start + (W[t - 1].end)) / 2, end: mid, n: 1, voicedN: w.scores ? 1 : 0, probSum: probOf(w, key) });
   });
   if (segs.length) { segs[0].start = 0; segs[segs.length - 1].end = W[W.length - 1].end; for (let i = 1; i < segs.length; i++) segs[i].start = segs[i - 1].end; }
-  // الأقسام القصيرة جداً (أقل من 15 ثانية) تُدمج مع ما قبلها
-  for (let i = 1; i < segs.length; i++) {
-    if (segs[i].end - segs[i].start < 15 && segs.length > 1) {
-      segs[i - 1].end = segs[i].end; segs[i - 1].n += segs[i].n; segs[i - 1].voicedN += segs[i].voicedN; segs[i - 1].probSum += segs[i].probSum;
-      segs.splice(i, 1); i--;
-      if (i > 0 && segs[i] && segs[i - 1].key === segs[i].key) { segs[i - 1].end = segs[i].end; segs[i - 1].n += segs[i].n; segs[i - 1].voicedN += segs[i].voicedN; segs[i - 1].probSum += segs[i].probSum; segs.splice(i, 1); i--; }
+  // الأقسام القصيرة جداً (أقل من 15 ثانية) تُدمج مع جارها، ثم تُدمج الأقسام المتتالية المتطابقة
+  const mergeInto = (x, y) => { x.end = Math.max(x.end, y.end); x.start = Math.min(x.start, y.start); x.n += y.n; x.voicedN += y.voicedN; x.probSum += y.probSum; };
+  let changed = true;
+  while (changed && segs.length > 1) {
+    changed = false;
+    for (let i = 0; i < segs.length; i++) {
+      if (segs[i].end - segs[i].start >= 15) continue;
+      const j = i === 0 ? 1 : i - 1;
+      mergeInto(segs[j], segs[i]); segs.splice(i, 1); changed = true; break;
+    }
+    for (let i = 0; i + 1 < segs.length; i++) {
+      if (segs[i].key === segs[i + 1].key) { mergeInto(segs[i], segs[i + 1]); segs.splice(i + 1, 1); i--; changed = true; }
     }
   }
   // تدقيق حدود الأقسام: أول نافذة يتفوق فيها المقام الجديد على السابق قرب الحد
   for (let i = 1; i < segs.length; i++) {
     const A = segs[i - 1].key, B = segs[i].key, bnd = segs[i].start;
-    let found = null;
-    for (const w of W) {
+    // أقرب نقطة للحد يتفوق بعدها المقام الجديد في نافذتين متتاليتين
+    let found = null, bestDist = Infinity;
+    for (let t = 0; t + 1 < W.length; t++) {
+      const w = W[t], w2 = W[t + 1];
       const mid = (w.start + w.end) / 2;
-      if (!w.scores || mid < bnd - 25 || mid > bnd + 10) continue;
-      if (w.scores.get(B) > w.scores.get(A)) { found = mid - 2.5; break; }
+      if (!w.scores || !w2.scores || mid < bnd - 25 || mid > bnd + 10) continue;
+      if (w.scores.get(B) > w.scores.get(A) && w2.scores.get(B) > w2.scores.get(A)) {
+        const prevOk = t > 0 && W[t - 1].scores && W[t - 1].scores.get(B) > W[t - 1].scores.get(A);
+        if (prevOk) continue; // ليست بداية التفوق
+        if (Math.abs(mid - bnd) < bestDist) { bestDist = Math.abs(mid - bnd); found = mid - 2.5; }
+      }
     }
     if (found != null && found > segs[i - 1].start + 5 && found < segs[i].end - 5) { segs[i - 1].end = found; segs[i].start = found; }
   }
@@ -350,7 +366,21 @@ export function deepAnalyzeFrames(frames) {
   const dur = {};
   segments.forEach(sg => { const kk = sg.id + ':' + sg.q; dur[kk] = (dur[kk] || 0) + (sg.end - sg.start); });
   const mainSeg = Object.entries(dur).sort((a, b) => b[1] - a[1])[0][0].split(':');
-  return { ...base, deep: { main: { id: mainSeg[0], q: +mainSeg[1] }, segments, distinct: Object.keys(dur).length, durationByMaqam: dur, total: W.length ? W[W.length - 1].end : 0 } };
+  // اجعل البطاقة الرئيسية والحفظ يعتمدان المقام الأساسي (الأطول زمناً) بتحليل أقسامه فقط
+  let out = base;
+  if (mainSeg[0] !== main.id || +mainSeg[1] !== main.q) {
+    const mk = mainSeg.join(':');
+    const sub = [];
+    segments.forEach(sg => { if (sg.id + ':' + sg.q === mk) for (const f of frames) if (f.t >= sg.start && f.t < sg.end) sub.push(f); });
+    const r2 = sub.length > 400 ? analyzeFrames(sub, { timeline: false, bpm: false }) : null;
+    if (r2 && r2.ok && r2.ranking[0].id === mainSeg[0]) {
+      out = { ...base, ranking: r2.ranking, evidence: r2.evidence, histogram: r2.histogram };
+    } else {
+      const forced = { id: mainSeg[0], q: +mainSeg[1], score: 0, prob: segments.filter(sg => sg.id + ':' + sg.q === mk).reduce((a, sg) => Math.max(a, sg.conf), 0) };
+      out = { ...base, ranking: [forced, ...base.ranking.filter(r => r.id !== forced.id)].slice(0, 5) };
+    }
+  }
+  return { ...out, deep: { main: { id: mainSeg[0], q: +mainSeg[1] }, segments, distinct: Object.keys(dur).length, durationByMaqam: dur, total: W.length ? W[W.length - 1].end : 0 } };
 }
 function probOf(w, key) {
   if (!w.scores) return 0;
@@ -372,7 +402,7 @@ export function estimateBpm(frames) {
   for (let bpm = 60; bpm <= 190; bpm += 0.5) {
     const lag = 60 / bpm / hop;
     let s = 0, n = 0;
-    for (let i = 0; i + lag * 2 < o.length; i++) {
+    for (let i = 0; Math.round(i + 2 * lag) < o.length; i++) {
       const a = o[Math.round(i + lag)], b = o[Math.round(i + 2 * lag)];
       s += o[i] * a + 0.5 * o[i] * b; n++;
     }
@@ -381,7 +411,9 @@ export function estimateBpm(frames) {
     s *= Math.exp(-Math.pow(Math.log2(bpm / 105), 2) / 1.2);
     if (!best || s > best.s) best = { bpm, s };
   }
-  return best && best.s > 0 ? Math.round(best.bpm) : null;
+  // يجب أن تكون الدورية واضحة، وإلا فلا إيقاع (نغمة ثابتة مثلاً)
+  let energy = 0; for (const v of o) energy += v * v; energy /= o.length || 1;
+  return best && best.s > 0.08 * energy ? Math.round(best.bpm) : null;
 }
 
 // اسم القرار من رقم ربع التون (0 = دو)

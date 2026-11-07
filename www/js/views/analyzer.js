@@ -10,7 +10,9 @@ import { activity } from '../screen.js';
 import { playAlong, melodyOnFretboard, accompaniment, stopPracticeTools, songTrainer } from './practice-tools.js';
 
 let state = { worker: null, stream: null, proc: null, audio: null, url: null, live: null };
+let gen = 0; // يتغير عند مغادرة الصفحة لإلغاء أي عمل معلّق
 export function cleanup() {
+  gen++;
   stopLive();
   stopPracticeTools();
   if (state.worker) { state.worker.terminate(); state.worker = null; }
@@ -40,6 +42,8 @@ function lessonFor(id) { return ALL.find(l => l.title === MAQAMAT[id].name); }
 
 export function renderAnalyzer(app, openSongId = null) {
   cleanup();
+  const myGen = gen;
+  const alive = () => myGen === gen;
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'محلل المقام')));
   app.append(h('p', { class: 'muted', style: { marginTop: '-6px' } }, 'ارفع أغنية أو جزءاً منها، أو سجّل من المايكروفون، وسيحدد التطبيق المقام والقرار ويشرح لك لماذا. التحليل يتم على جهازك دون إنترنت.'));
 
@@ -84,29 +88,36 @@ export function renderAnalyzer(app, openSongId = null) {
   liveBtn.addEventListener('click', () => {
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; return; }
     editor.innerHTML = ''; results.innerHTML = '';
-    startLive(livePanel, status).then(ok => { if (ok) liveBtn.textContent = '■ أوقف الاستماع'; });
+    liveBtn.disabled = true;
+    startLive(livePanel, status, alive).then(ok => { liveBtn.disabled = false; if (ok) { liveBtn.textContent = '■ أوقف الاستماع'; livePanel.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
   });
   deepIn.addEventListener('change', async () => {
     const f = deepIn.files[0];
+    deepIn.value = '';
     if (!f) return;
+    if (!checkFile(f)) return;
+    discardRec();
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; }
     livePanel.innerHTML = ''; editor.innerHTML = ''; results.innerHTML = '';
     currentName = f.name.replace(/\.[^.]+$/, '');
     status.textContent = `جارٍ قراءة ${f.name}…`;
     try {
       const buf = await f.arrayBuffer();
-      decoded = await getCtx().decodeAudioData(buf.slice(0));
+      decoded = await getCtx().decodeAudioData(buf);
+      if (!alive()) return;
       if (state.url) URL.revokeObjectURL(state.url);
       state.url = URL.createObjectURL(f);
       const len = Math.min(decoded.duration, 480);
       status.textContent = `${f.name} · ${fmt(decoded.duration)}${decoded.duration > 480 ? ' (سأحلل أول 8 دقائق)' : ''}`;
       run(0, len, h('button'), true);
     } catch (e) { status.textContent = 'تعذّر قراءة الملف. جرّب صيغة MP3 أو M4A أو WAV.'; }
-    deepIn.value = '';
   });
   fileIn.addEventListener('change', async () => {
     const f = fileIn.files[0];
+    fileIn.value = '';
     if (!f) return;
+    if (!checkFile(f)) return;
+    discardRec();
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; }
     livePanel.innerHTML = '';
     currentName = f.name.replace(/\.[^.]+$/, '');
@@ -114,7 +125,8 @@ export function renderAnalyzer(app, openSongId = null) {
     results.innerHTML = '';
     try {
       const buf = await f.arrayBuffer();
-      decoded = await getCtx().decodeAudioData(buf.slice(0));
+      decoded = await getCtx().decodeAudioData(buf);
+      if (!alive()) return;
       if (state.url) URL.revokeObjectURL(state.url);
       state.url = URL.createObjectURL(f);
       status.textContent = `${f.name} · ${fmt(decoded.duration)}`;
@@ -124,13 +136,31 @@ export function renderAnalyzer(app, openSongId = null) {
     }
   });
 
+  function checkFile(f) {
+    if (f.size > 80 * 1024 * 1024) { status.textContent = 'الملف كبير جداً (أكثر من 80 ميجا). اختر ملفاً أصغر أو مقطعاً من الأغنية.'; return false; }
+    return true;
+  }
+  function discardRec() {
+    if (!recording) return;
+    recording = false; stopRec();
+    recBtn.textContent = '🎙️ سجّل مقطعاً';
+  }
+  state.onHide = () => { if (recording) finishRec(); };
+
   // تسجيل من المايكروفون
   let recording = false;
+  let recPending = false;
   recBtn.addEventListener('click', async () => {
     if (recording) { finishRec(); return; }
+    if (recPending) return;
+    if (state.worker) { state.worker.terminate(); state.worker = null; }
+    recPending = true; recBtn.disabled = true;
     try {
       const c = getCtx();
-      state.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      recPending = false; recBtn.disabled = false;
+      if (!alive()) { stream.getTracks().forEach(t => t.stop()); return; }
+      state.stream = stream;
       const src = c.createMediaStreamSource(state.stream);
       const proc = c.createScriptProcessor(4096, 1, 1);
       const chunks = [];
@@ -152,22 +182,22 @@ export function renderAnalyzer(app, openSongId = null) {
       if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; }
       livePanel.innerHTML = '';
       results.innerHTML = ''; editor.innerHTML = '';
-    } catch (e) { status.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; }
+    } catch (e) { recPending = false; recBtn.disabled = false; status.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; }
   });
   function finishRec() {
     if (!recording) return;
     recording = false;
-    recBtn.textContent = '🎙️ سجّل من المايكروفون';
+    recBtn.textContent = '🎙️ سجّل مقطعاً';
     stopRec();
     const { chunks, sr } = state.rec;
     const total = chunks.reduce((a, b) => a + b.length, 0);
-    if (total < sr * 3) { status.textContent = 'التسجيل قصير جداً. سجّل 10 ثوانٍ على الأقل.'; return; }
+    if (total < sr * 5) { status.textContent = 'التسجيل قصير جداً. سجّل 10 ثوانٍ على الأقل.'; return; }
     const ab = getCtx().createBuffer(1, total, sr);
     const d = ab.getChannelData(0);
     let o = 0; for (const ch of chunks) { d.set(ch, o); o += ch.length; }
     decoded = ab;
     currentName = 'تسجيل ' + new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
-    state.url = null;
+    if (state.url) { URL.revokeObjectURL(state.url); state.url = null; }
     status.textContent = `تسجيل · ${fmt(ab.duration)} — جارٍ التحليل مباشرة…`;
     const go = showEditor(Math.min(ab.duration, 180));
     run(0, Math.min(ab.duration, 180), go); // تحليل فوري للتسجيل كاملاً
@@ -177,26 +207,27 @@ export function renderAnalyzer(app, openSongId = null) {
     editor.innerHTML = '';
     const dur = decoded.duration;
     let start = 0;
-    let len = initialLen || Math.min(dur, 60);
+    let chosen = initialLen || Math.min(dur, 60);
+    const effLen = () => Math.max(1, Math.min(chosen, dur - start));
     const preview = h('button', { class: 'btn small' }, '▶ استمع للمقطع');
     preview.addEventListener('click', () => {
       if (state.audio) { state.audio.pause(); state.audio = null; preview.textContent = '▶ استمع للمقطع'; return; }
       if (state.url) {
         const a = new Audio(state.url); a.currentTime = start; a.play(); state.audio = a; preview.textContent = '■ إيقاف';
-        const stopAt = () => { if (a.currentTime >= start + len) { a.pause(); state.audio = null; preview.textContent = '▶ استمع للمقطع'; } else if (state.audio === a) requestAnimationFrame(stopAt); };
+        const stopAt = () => { if (a.currentTime >= start + effLen()) { a.pause(); state.audio = null; preview.textContent = '▶ استمع للمقطع'; } else if (state.audio === a) requestAnimationFrame(stopAt); };
         requestAnimationFrame(stopAt);
       } else {
-        const c = getCtx(); const s = c.createBufferSource(); s.buffer = decoded; s.connect(c.destination); s.start(0, start, len);
+        const c = getCtx(); const s = c.createBufferSource(); s.buffer = decoded; s.connect(c.destination); s.start(0, start, effLen());
         state.audio = { pause: () => { try { s.stop(); } catch (e) {} } }; preview.textContent = '■ إيقاف';
         s.onended = () => { state.audio = null; preview.textContent = '▶ استمع للمقطع'; };
       }
     });
     const go = h('button', { class: 'btn primary', style: { width: '100%' } }, '🔍 حلّل المقام');
-    go.addEventListener('click', () => run(start, len, go));
+    go.addEventListener('click', () => run(start, effLen(), go));
     const els = [];
     if (dur > 15) {
-      els.push(slider('البداية', 0, Math.max(0, Math.floor(dur - 10)), 1, 0, v => { start = v; if (start + len > dur) len = dur - start; }, v => fmt(v)));
-      els.push(slider('المدة', 10, Math.min(180, Math.floor(dur)), 1, Math.round(len), v => { len = Math.min(v, dur - start); }, v => `${v} ث`));
+      els.push(slider('البداية', 0, Math.max(0, Math.floor(dur - 10)), 1, 0, v => { start = v; }, v => fmt(v)));
+      els.push(slider('المدة', 10, Math.min(180, Math.floor(dur)), 1, Math.round(chosen), v => { chosen = v; }, v => `${v} ث`));
     }
     editor.append(card('المقطع المراد تحليله', ...els, h('div', { class: 'row', style: { margin: '8px 0' } }, preview), go));
     return go;
@@ -218,11 +249,13 @@ export function renderAnalyzer(app, openSongId = null) {
       src.connect(hp).connect(lp).connect(off.destination);
       src.start(0, start, len);
       const rendered = await off.startRendering();
+      if (!alive()) return;
       const x = new Float32Array(rendered.getChannelData(0));
       // تطبيع
       let peak = 0; for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
       if (peak > 0) for (let i = 0; i < x.length; i++) x[i] /= peak;
       label.textContent = 'تتبع اللحن بدقة ربع التون…';
+      if (!alive()) return;
       const res = await new Promise((resolve, reject) => {
         if (state.worker) state.worker.terminate();
         const w = new Worker(new URL('../workers/maqam-worker.js', import.meta.url), { type: 'module' });
@@ -235,6 +268,7 @@ export function renderAnalyzer(app, openSongId = null) {
         w.onerror = e => { w.terminate(); state.worker = null; reject(e); };
         w.postMessage({ x, deep }, [x.buffer]);
       });
+      if (!alive()) return;
       results.innerHTML = '';
       if (res.ok) res.startOffset = start;
       if (deep && res.ok && res.deep) showDeep(res);
@@ -397,7 +431,7 @@ export function renderAnalyzer(app, openSongId = null) {
     if (saved) results.prepend(h('div', { class: 'muted', style: { marginBottom: '6px' } }, `من المرجع: ${saved.name || ''}${saved.artist ? ' — ' + saved.artist : ''}`));
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     // بعد تحليل جديد: اسأل عن المغني ثم الأغنية واحفظ
-    if (!saved) setTimeout(askAndSave, 700);
+    if (!saved) setTimeout(() => { if (alive() && !document.hidden) askAndSave(); }, 700);
   }
 }
 
@@ -432,10 +466,11 @@ function stopLive() {
   state.live = null;
 }
 
-async function startLive(panel, status) {
+async function startLive(panel, status, alive = () => true) {
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); }
   catch (e) { status.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; return false; }
+  if (!alive()) { stream.getTracks().forEach(t => t.stop()); return false; }
   const c = getCtx();
   const src = c.createMediaStreamSource(stream);
   const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 110;
@@ -571,4 +606,12 @@ async function startLive(panel, status) {
     }
   }
   return true;
+}
+
+// إيقاف مؤقت عند خروج التطبيق للخلفية: يوقف الاستماع والأدوات والمعاينة دون إلغاء الصفحة
+export function pauseAnalyzer() {
+  stopLive();
+  stopPracticeTools();
+  if (state.audio) { state.audio.pause(); state.audio = null; }
+  if (state.onHide) state.onHide();
 }

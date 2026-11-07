@@ -10,7 +10,7 @@ import { renderLesson, cleanup as cleanLesson, pause as pauseLesson } from './vi
 import { renderExplore, renderChords, cleanup as cleanExplore } from './views/explore.js';
 import { renderTuner, renderRhythm, renderEar, renderSongs, cleanup as cleanTools, pause as pauseTools } from './views/tools.js';
 import { renderReference, renderSettings } from './views/reference.js';
-import { renderAnalyzer, cleanup as cleanAnalyzer } from './views/analyzer.js';
+import { renderAnalyzer, cleanup as cleanAnalyzer, pauseAnalyzer } from './views/analyzer.js';
 import { renderSongbook } from './views/songbook.js';
 import { setScreenTimeout, activity } from './screen.js';
 
@@ -36,6 +36,7 @@ function drawNav(path) {
 }
 
 function route() {
+  document.querySelectorAll('.overlay').forEach(o => (o.__close ? o.__close(null) : o.remove()));
   cleanLesson(); cleanExplore(); cleanTools(); cleanAnalyzer();
   const path = location.hash.replace(/^#\/?/, '');
   const [p0, p1, p2, p3] = path.split('/');
@@ -74,13 +75,15 @@ window.addEventListener('hashchange', route);
 // فتح سياق الصوت عند أول لمسة (شرط المتصفحات)
 const unlock = () => { getCtx(); setVolume(store.settings().volume); window.removeEventListener('pointerdown', unlock); };
 window.addEventListener('pointerdown', unlock);
-document.addEventListener('visibilitychange', () => { if (document.hidden) { speech.stop(); pauseLesson(); pauseTools(); cleanExplore(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { speech.stop(); pauseLesson(); pauseTools(); cleanExplore(); pauseAnalyzer(); } });
 
 // زر الرجوع في أندرويد: يرجع للصفحة السابقة، ويخرج فقط من الرئيسية
 try {
   if (Capacitor.isNativePlatform()) {
     const AppPlugin = registerPlugin('App');
     AppPlugin.addListener('backButton', () => {
+      const ov = document.querySelector('.overlay');
+      if (ov) { ov.__close ? ov.__close(null) : ov.remove(); return; }
       const path = location.hash.replace(/^#\/?/, '');
       if (path === '') AppPlugin.exitApp();
       else if (history.length > 1) history.back();
@@ -88,4 +91,5 @@ try {
     });
   }
 } catch (e) { console.warn(e); }
+window.addEventListener('storage-full', () => { import('./ui.js').then(m => m.toast('ذاكرة التطبيق ممتلئة. احذف بعض الأغاني من المرجع.', 4000)); });
 route();

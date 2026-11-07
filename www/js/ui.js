@@ -101,6 +101,7 @@ export function askText({ title, placeholder = '', value = '', suggestions = [],
     input.addEventListener('keydown', e => { if (e.key === 'Enter') close(input.value.trim()); });
     const box = h('div', { class: 'modal' }, h('h3', { style: { marginTop: 0 } }, title), input, dl, h('div', { class: 'row', style: { marginTop: '12px', justifyContent: 'flex-end' } }, skip, ok));
     const overlay = h('div', { class: 'overlay' }, box);
+    overlay.__close = close;
     document.body.appendChild(overlay);
     setTimeout(() => input.focus(), 50);
   });

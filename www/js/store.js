@@ -23,7 +23,16 @@ function load() {
   } catch (e) { return clone(defaults); }
 }
 
-export function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+export function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); }
+  catch (e) {
+    // امتلأت الذاكرة: خفّف الأغاني القديمة (احذف بيانات اللحن الثقيلة) ثم أعد المحاولة
+    try {
+      (state.songs || []).slice(20).forEach(s => { if (s.res) { delete s.res.notes; delete s.res.histogram; } });
+      localStorage.setItem(KEY, JSON.stringify(state));
+    } catch (e2) { if (typeof window !== 'undefined' && window.dispatchEvent) window.dispatchEvent(new CustomEvent('storage-full')); }
+  }
+}
 export function settings() { return state.settings; }
 export function progress() { return state.progress; }
 export function setSetting(k, v) { state.settings[k] = v; save(); }

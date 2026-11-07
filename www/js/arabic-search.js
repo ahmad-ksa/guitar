@@ -1,7 +1,11 @@
 // تطبيع النص العربي للبحث: الهمزات، التاء المربوطة/الهاء، الألف المقصورة، التشكيل، المسافات
 export function normalizeAr(s) {
   return String(s || '')
+    .normalize('NFKC')
     .toLowerCase()
+    .replace(/ی/g, 'ي').replace(/ک/g, 'ك').replace(/ھ/g, 'ه')
+    .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x660))
+    .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x6F0))
     .replace(/[ً-ٰٟۖ-ۭ]/g, '') // التشكيل
     .replace(/ـ/g, '')                               // التطويل
     .replace(/[أإآٱ]/g, 'ا')
