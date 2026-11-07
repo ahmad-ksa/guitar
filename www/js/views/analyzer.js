@@ -105,7 +105,9 @@ function lessonFor(id) { return ALL.find(l => l.title === MAQAMAT[id].name); }
 export function renderAnalyzer(app, openSongId = null) {
   cleanup();
   const myGen = gen;
-  const alive = () => myGen === gen;
+  const aliveGen = () => myGen === gen;
+  const alive = aliveGen;
+  let runId = 0; // يُلغي التحليل الجاري عند اختيار ملف جديد
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'محلل المقام')));
   app.append(h('p', { class: 'muted', style: { marginTop: '-6px' } }, 'ارفع أغنية أو جزءاً منها، أو سجّل من المايكروفون، وسيحدد التطبيق المقام والقرار ويشرح لك لماذا. التحليل يتم على جهازك دون إنترنت.'));
 
@@ -154,13 +156,23 @@ export function renderAnalyzer(app, openSongId = null) {
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; return; }
     editor.innerHTML = ''; results.innerHTML = '';
     liveBtn.disabled = true;
-    startLive(livePanel, status, alive).then(ok => { liveBtn.disabled = false; if (ok) { liveBtn.textContent = '■ أوقف الاستماع'; livePanel.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+    discardRec(); runId++;
+    if (state.worker) { state.worker.terminate(); state.worker = null; }
+    startLive(livePanel, status, alive).then(ok => {
+      liveBtn.disabled = false;
+      if (!ok || !state.live) return;
+      liveBtn.textContent = '■ أوقف الاستماع';
+      state.live.onStop = () => { liveBtn.textContent = '📡 استمع مباشرة'; livePanel.querySelector('.rec')?.remove(); const lab = livePanel.querySelector('.rec-label'); if (lab) lab.textContent = 'توقف الاستماع'; };
+      livePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   });
   deepIn.addEventListener('change', async () => {
     const f = deepIn.files[0];
     deepIn.value = '';
     if (!f) return;
     if (!checkFile(f)) return;
+    runId++;
+    if (state.worker) { state.worker.terminate(); state.worker = null; }
     discardRec();
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; }
     livePanel.innerHTML = ''; editor.innerHTML = ''; results.innerHTML = '';
@@ -182,6 +194,8 @@ export function renderAnalyzer(app, openSongId = null) {
     fileIn.value = '';
     if (!f) return;
     if (!checkFile(f)) return;
+    runId++;
+    if (state.worker) { state.worker.terminate(); state.worker = null; }
     discardRec();
     if (state.live) { stopLive(); liveBtn.textContent = '📡 استمع مباشرة'; }
     livePanel.innerHTML = '';
@@ -218,6 +232,7 @@ export function renderAnalyzer(app, openSongId = null) {
   recBtn.addEventListener('click', async () => {
     if (recording) { finishRec(); return; }
     if (recPending) return;
+    runId++;
     if (state.worker) { state.worker.terminate(); state.worker = null; }
     recPending = true; recBtn.disabled = true;
     try {
@@ -299,6 +314,8 @@ export function renderAnalyzer(app, openSongId = null) {
   }
 
   async function run(start, len, btn, deep = false) {
+    const myRun = ++runId;
+    const alive = () => aliveGen() && myRun === runId;
     btn.disabled = true;
     results.innerHTML = '';
     const bar = h('i', { style: { width: '0%' } });
@@ -554,9 +571,11 @@ function stopLive() {
   const L = state.live;
   if (!L) return;
   clearInterval(L.timer); clearInterval(L.timer2);
-  try { L.proc.disconnect(); } catch (e) {}
+  L.proc.onaudioprocess = null;
+  try { L.proc.disconnect(); L.src.disconnect(); } catch (e) {}
   L.stream.getTracks().forEach(t => t.stop());
   state.live = null;
+  if (L.onStop) L.onStop();
 }
 
 async function startLive(panel, status, alive = () => true) {
@@ -565,6 +584,9 @@ async function startLive(panel, status, alive = () => true) {
   catch (e) { status.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; return false; }
   if (!alive()) { stream.getTracks().forEach(t => t.stop()); return false; }
   const c = getCtx();
+  // أندرويد قد يبدأ سياق الصوت «معلّقاً» بعد نافذة إذن المايك
+  try { if (c.state !== 'running') await Promise.race([c.resume(), new Promise(r => setTimeout(r, 1500))]); } catch (e) {}
+  if (!alive()) { stream.getTracks().forEach(t => t.stop()); return false; }
   const src = c.createMediaStreamSource(stream);
   const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 110;
   const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
@@ -572,7 +594,7 @@ async function startLive(panel, status, alive = () => true) {
   const mute = c.createGain(); mute.gain.value = 0;
   src.connect(hp).connect(lp).connect(proc); proc.connect(mute); mute.connect(c.destination);
   const CAP = SR * 40;
-  const L = { stream, proc, buf: new Float32Array(CAP), len: 0, done: 0, frames: [], t0: c.currentTime, shown: null, pending: null, gain: 1 };
+  const L = { stream, proc, buf: new Float32Array(CAP), len: 0, done: 0, frames: [], t0: c.currentTime, shown: null, pending: null, gain: 1, rawPeak: 0, callbacks: 0, started: performance.now(), src };
   state.live = L;
   const ratio = c.sampleRate / SR;
   let phase = 0;
@@ -581,7 +603,7 @@ async function startLive(panel, status, alive = () => true) {
     // إعادة أخذ العينات إلى 11025 بالمتوسط
     const out = [];
     while (phase + ratio <= d.length) {
-      const a = Math.floor(phase), b = Math.min(d.length, Math.floor(phase + ratio));
+      const a = Math.max(0, Math.floor(phase)), b = Math.min(d.length, Math.max(a + 1, Math.floor(phase + ratio)));
       let s = 0; for (let i = a; i < b; i++) s += d[i];
       out.push(s / Math.max(1, b - a));
       phase += ratio;
@@ -593,7 +615,9 @@ async function startLive(panel, status, alive = () => true) {
       L.buf.copyWithin(0, cut, L.len); L.len = keep; L.done = Math.max(0, L.done - cut);
     }
     // تكبير تلقائي بسيط
+    L.callbacks++;
     let pk = 0; for (const v of out) pk = Math.max(pk, Math.abs(v));
+    L.rawPeak = Math.max(pk, L.rawPeak * 0.9);
     if (pk > 0) L.gain = Math.min(50, 0.95 * L.gain + 0.05 * (0.5 / pk));
     for (const v of out) L.buf[L.len++] = v * L.gain;
   };
@@ -606,12 +630,13 @@ async function startLive(panel, status, alive = () => true) {
   const bpmEl = h('span', { class: 'pill' }, 'BPM —');
   const engineEl = h('span', { class: 'pill', style: { fontSize: '.7rem' } }, 'YIN');
   const mood = h('div', { class: 'muted', style: { fontSize: '.85rem' } });
+  const diag = h('div', { class: 'muted', style: { fontSize: '.75rem', marginTop: '4px' } });
   const canvas = h('canvas', { style: { width: '100%', height: '200px', display: 'block', background: 'var(--bg2)', borderRadius: '10px', marginTop: '10px' } });
   const histHost = h('div');
   const links = h('div', { class: 'row', style: { marginTop: '8px' } });
   panel.append(h('section', { class: 'card hl' },
-    h('div', { class: 'row between' }, h('span', { class: 'row' }, h('span', { class: 'rec' }), h('span', { class: 'muted' }, 'استماع مباشر')), h('span', { class: 'row' }, engineEl, bpmEl, conf)),
-    name, sub, mood, canvas, histHost, links,
+    h('div', { class: 'row between' }, h('span', { class: 'row' }, h('span', { class: 'rec' }), h('span', { class: 'muted rec-label' }, 'استماع مباشر')), h('span', { class: 'row' }, engineEl, bpmEl, conf)),
+    name, sub, mood, diag, canvas, histHost, links,
     h('p', { class: 'muted', style: { fontSize: '.78rem', margin: '8px 0 0' } }, 'الخطوط الأفقية = درجات المقام المكتشف. النقاط = اللحن الذي يسمعه التطبيق الآن.')));
   status.textContent = '';
 
@@ -626,7 +651,7 @@ async function startLive(panel, status, alive = () => true) {
     try {
       let fr;
       if (sfReady) {
-        const ctxS = Math.min(L.done, HOP * Math.round(SR * 0.5 / HOP));
+        const ctxS = Math.min(L.done, HOP * Math.round(SR * 0.3 / HOP));
         const cuts = L.cuts, done = L.done;
         const segX = L.buf.slice(done - ctxS, L.len);
         const sf = await sfDetect(to16(segX));
@@ -640,12 +665,26 @@ async function startLive(panel, status, alive = () => true) {
       const maxF = Math.round(25 / (HOP / SR));
       if (L.frames.length > maxF) L.frames.splice(0, L.frames.length - maxF);
       draw();
+    } catch (e) {
+      console.warn('live SwiftF0 failed, switching to YIN', e);
+      sfReady = false; engineEl.textContent = 'YIN';
     } finally { busy = false; }
   }, 200);
 
   // تحليل المقام كل ثانية ونصف
   L.timer2 = setInterval(() => {
     activity();
+    // تشخيص: هل يصل صوت؟ وكم نسبة النغمات المسموعة؟
+    const recent = L.frames.slice(-Math.round(5 * SR / HOP));
+    const vr = recent.length ? recent.filter(f => f.cents != null).length / recent.length : 0;
+    const lvl = L.rawPeak > 0 ? Math.max(0, Math.min(10, Math.round((20 * Math.log10(L.rawPeak) + 60) / 6))) : 0;
+    diag.textContent = `الصوت: ${'▮'.repeat(lvl)}${'▯'.repeat(10 - lvl)} · نغمات واضحة: ${Math.round(vr * 100)}% · ${L.frames.length < 200 ? 'أجمع اللحن…' : 'أحلل'}`;
+    if (!L.callbacks && performance.now() - L.started > 2500) {
+      try { c.resume(); } catch (e) {}
+      sub.textContent = 'لا يصل صوت من المايك. تأكد من إذن المايكروفون للتطبيق، ثم أوقف الاستماع وشغّله مرة أخرى.';
+      return;
+    }
+    if (L.callbacks && L.rawPeak < 0.002 && L.frames.length >= 200) { sub.textContent = 'الصوت ضعيف جداً… قرّب الجوال من السمّاعة أو ارفع الصوت'; }
     if (L.frames.length < 200) return;
     const res = analyzeFrames(L.frames, { timeline: false });
     if (!res.ok) { sub.textContent = 'لم أسمع لحناً واضحاً بعد… قرّب الجوال من مصدر الصوت'; return; }

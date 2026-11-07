@@ -20,7 +20,10 @@ self.onmessage = async e => {
         }
       }
     }
-    if (!frames) frames = trackPitch(both ? xv : x, SR, progress);
+    if (!frames) { // SwiftF0 غير متاح: YIN على الأغنية وعلى الصوت المعزول ثم ندمج
+      mixFrames = frames = trackPitch(x, SR, p => progress(p * (both ? 0.5 : 1)));
+      if (both) { frames = mergeVocalFrames(trackPitch(xv, SR, p => progress(0.5 + p * 0.5)), mixFrames); vocalShare = frames.vocalShare; }
+    }
     // اختيار الأوضح: صوت المغني المعزول أو الأغنية الأصلية
     // (العزل ممتاز مع الغناء، لكنه قد يشوّه العزف الآلي البحت)
     let vocalsUsed = false;

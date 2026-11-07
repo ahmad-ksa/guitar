@@ -23,20 +23,22 @@ export function micPitchSource(c, stream) {
   loadSwiftF0().then(sess => { sfOk = !!sess; });
   const timer = setInterval(async () => {
     if (!sfOk) return;
-    const r = await live.estimate();
-    if (r) { latest = r; stamp = performance.now(); }
+    try {
+      const r = await live.estimate();
+      if (r) { latest = r; stamp = performance.now(); }
+    } catch (e) { console.warn('SwiftF0 failed, using YIN', e); sfOk = false; }
   }, 40);
   return {
     engine: () => (sfOk ? 'SwiftF0' : 'YIN'),
     read() {
-      if (sfOk && latest && performance.now() - stamp < 250) {
+      if (sfOk && latest && Number.isFinite(latest.conf) && performance.now() - stamp < 250) {
         if (!latest.freq || latest.conf < 0.5) return null;
         return { freq: latest.freq, clarity: 0.86 + 0.14 * latest.conf };
       }
       an.getFloatTimeDomainData(buf);
       return detectPitch(buf, c.sampleRate);
     },
-    stop() { clearInterval(timer); try { proc.disconnect(); src.disconnect(); } catch (e) {} },
+    stop() { clearInterval(timer); proc.onaudioprocess = null; try { proc.disconnect(); src.disconnect(); } catch (e) {} },
   };
 }
 
@@ -246,7 +248,7 @@ export function melodyOnFretboard(host, res, best) {
   active.push(() => player.stop());
   const playBtn = h('button', { class: 'btn primary' }, '▶ اعزف اللحن');
   const tab = h('div', { class: 'ltr', style: { fontFamily: 'monospace', fontSize: '.78rem', whiteSpace: 'pre', overflowX: 'auto', background: 'var(--bg2)', padding: '8px', borderRadius: '8px', marginTop: '8px' } });
-  host.append(card('اللحن على الزند', h('p', { class: 'muted', style: { fontSize: '.85rem' } }, `حوّلت ${events.length} نوتة من الأغنية إلى مواضع على الجيتار. اعزفها ببطء مع الإضاءة، ثم ارفع السرعة.`),
+  host.append(card('اللحن على الزند', h('p', { class: 'muted', style: { fontSize: '.85rem' } }, `حوّلت ${events.length} ${events.length >= 3 && events.length <= 10 ? 'نوتات' : 'نوتة'} من الأغنية إلى مواضع على الجيتار. اعزفها ببطء مع الإضاءة، ثم ارفع السرعة.`),
     fbh, slider('السرعة', 0.3, 1.2, 0.05, speed, v => { speed = v; }, v => `${Math.round(v * 100)}%`),
     h('div', { class: 'row' }, playBtn, h('button', { class: 'btn', onclick: () => player.stop() }, '■')), tab));
   const fb = new Fretboard(fbh, { from, to });
@@ -365,7 +367,7 @@ export function songTrainer(host, res, best, audioUrl = null, vocalsBuf = null) 
     stopListen(); player.stop(); stopAudio();
     const ph = phrases[pi];
     title.innerHTML = '';
-    title.append(h('b', {}, `الجملة ${pi + 1} من ${phrases.length}`), h('span', { class: 'muted' }, `${ph.length} نوتات`));
+    title.append(h('b', {}, `الجملة ${pi + 1} من ${phrases.length}`), h('span', { class: 'muted' }, ph.length === 1 ? 'نوتة واحدة' : ph.length === 2 ? 'نوتتان' : ph.length <= 10 ? `${ph.length} نوتات` : `${ph.length} نوتة`));
     dots.innerHTML = '';
     phrases.forEach((_, i) => dots.append(h('i', { class: i === pi ? 'on' : (scores[i] != null ? 'seen' : '') })));
     msg.textContent = scores[pi] != null ? `نتيجتك السابقة في هذه الجملة: ${scores[pi]}%` : 'ابدأ بالاستماع، ثم اضغط «دورك».';

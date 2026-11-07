@@ -96,7 +96,7 @@ export class LivePitch {
   }
   // يحلل آخر ~0.35 ثانية ويعيد طبقة الإطار الذي اكتمل سياقه (يسبق النهاية بـ 10 إطارات)
   async estimate() {
-    if (this.busy) return this.last;
+    if (this.busy) return null; // لا نعيد نتيجة قديمة كأنها جديدة
     const session = await loadSwiftF0();
     if (!session) return null;
     const need = 22 * SF_HOP;
@@ -121,7 +121,7 @@ export function makeResampler(srcRate) {
   return input => {
     const out = [];
     while (phase + ratio <= input.length) {
-      const a = Math.floor(phase), b = Math.min(input.length, Math.max(a + 1, Math.floor(phase + ratio)));
+      const a = Math.max(0, Math.floor(phase)), b = Math.min(input.length, Math.max(a + 1, Math.floor(phase + ratio)));
       let s = 0; for (let i = a; i < b; i++) s += input[i];
       out.push(s / (b - a));
       phase += ratio;
