@@ -251,6 +251,15 @@ export function renderAnalyzer(app, openSongId = null) {
       const rendered = await off.startRendering();
       if (!alive()) return;
       const x = new Float32Array(rendered.getChannelData(0));
+      // نسخة 16kHz لنموذج SwiftF0
+      const off16 = new OfflineAudioContext(1, Math.ceil(len * 16000), 16000);
+      const src16 = off16.createBufferSource(); src16.buffer = decoded;
+      const hp16 = off16.createBiquadFilter(); hp16.type = 'highpass'; hp16.frequency.value = 80;
+      src16.connect(hp16).connect(off16.destination);
+      src16.start(0, start, len);
+      const x16 = new Float32Array((await off16.startRendering()).getChannelData(0));
+      if (!alive()) return;
+      { let pk = 0; for (let i = 0; i < x16.length; i++) pk = Math.max(pk, Math.abs(x16[i])); if (pk > 0) for (let i = 0; i < x16.length; i++) x16[i] /= pk; }
       // تطبيع
       let peak = 0; for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
       if (peak > 0) for (let i = 0; i < x.length; i++) x[i] /= peak;
@@ -266,7 +275,7 @@ export function renderAnalyzer(app, openSongId = null) {
           if (e.data.error) reject(new Error(e.data.error)); else resolve(e.data.result);
         };
         w.onerror = e => { w.terminate(); state.worker = null; reject(e); };
-        w.postMessage({ x, deep }, [x.buffer]);
+        w.postMessage({ x, x16, deep }, [x.buffer, x16.buffer]);
       });
       if (!alive()) return;
       results.innerHTML = '';
@@ -432,7 +441,7 @@ export function renderAnalyzer(app, openSongId = null) {
         res.notes && res.notes.length ? tbtn('🎼 اللحن على الزند', () => melodyOnFretboard(toolHost, res, b)) : null,
         tbtn('🥁 رافقني', () => accompaniment(toolHost, b, res.bpm)),
         saveBtn, delBtn), savedLine), toolHost);
-    results.append(h('p', { class: 'muted', style: { fontSize: '.78rem' } }, `تصحيح الدوزان: ${res.tuningOffset > 0 ? '+' : ''}${res.tuningOffset.toFixed(0)} سنت · نسبة اللحن الواضح: ${Math.round(res.voicedRatio * 100)}%`));
+    results.append(h('p', { class: 'muted', style: { fontSize: '.78rem' } }, `تصحيح الدوزان: ${res.tuningOffset > 0 ? '+' : ''}${res.tuningOffset.toFixed(0)} سنت · نسبة اللحن الواضح: ${Math.round(res.voicedRatio * 100)}% · محرك التتبع: ${res.engine === 'swiftf0' ? 'SwiftF0' : 'YIN'}`));
     if (saved) results.prepend(h('div', { class: 'muted', style: { marginBottom: '6px' } }, `من المرجع: ${saved.name || ''}${saved.artist ? ' — ' + saved.artist : ''}`));
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     // بعد تحليل جديد: اسأل عن المغني ثم الأغنية واحفظ

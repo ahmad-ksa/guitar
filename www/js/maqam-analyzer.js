@@ -55,6 +55,26 @@ export function trackPitch(x, sr = SR, onProgress) {
   return out;
 }
 
+// ===== إطارات من SwiftF0 على شبكة إطاراتنا (23ms) =====
+// x11: الصوت بمعدل 11025 (للطاقة)، sf: { pitch, conf } لكل 16ms من نموذج SwiftF0
+export function framesFromSwift(x11, sf) {
+  const frames = [];
+  const sfHop = 256 / 16000;
+  const total = Math.floor((x11.length - FRAME) / HOP);
+  for (let k = 0; k < total; k++) {
+    const off = k * HOP;
+    let rms = 0;
+    for (let i = 0; i < FRAME; i++) { const v = x11[off + i]; rms += v * v; }
+    rms = Math.sqrt(rms / FRAME);
+    const tc = (off + FRAME / 2) / SR; // مركز نافذتنا
+    const j = Math.min(sf.pitch.length - 1, Math.max(0, Math.round(tc / sfHop)));
+    const c = sf.conf[j], p = sf.pitch[j];
+    const voiced = c >= 0.5 && p > 0;
+    frames.push({ t: off / SR, cents: voiced ? 1200 * Math.log2(p / 440) + 6900 : null, clarity: voiced ? 0.76 + 0.24 * c : 0, rms });
+  }
+  return frames;
+}
+
 // ===== تنعيم: إزالة القفزات الأوكتافية العابرة =====
 function cleanFrames(frames) {
   const v = frames.map(f => (f.cents != null && f.clarity > 0.75 ? f.cents : null));

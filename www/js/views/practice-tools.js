@@ -6,6 +6,39 @@ import { Fretboard } from '../fretboard.js';
 import { allPositions } from '../exercises.js';
 import { Player } from '../player.js';
 import { activity } from '../screen.js';
+import { LivePitch, makeResampler, loadSwiftF0 } from '../swiftf0.js';
+
+// مصدر طبقة المايكروفون: SwiftF0 (أدق مع الأوتار والتوافقيات) مع YIN احتياطياً
+export function micPitchSource(c, stream) {
+  const src = c.createMediaStreamSource(stream);
+  const an = c.createAnalyser(); an.fftSize = 4096; src.connect(an);
+  const buf = new Float32Array(an.fftSize);
+  const live = new LivePitch();
+  const rs = makeResampler(c.sampleRate);
+  const proc = c.createScriptProcessor(1024, 1, 1);
+  const mute = c.createGain(); mute.gain.value = 0;
+  src.connect(proc); proc.connect(mute); mute.connect(c.destination);
+  proc.onaudioprocess = e => live.push(rs(e.inputBuffer.getChannelData(0)));
+  let sfOk = null, latest = null, stamp = 0;
+  loadSwiftF0().then(sess => { sfOk = !!sess; });
+  const timer = setInterval(async () => {
+    if (!sfOk) return;
+    const r = await live.estimate();
+    if (r) { latest = r; stamp = performance.now(); }
+  }, 40);
+  return {
+    engine: () => (sfOk ? 'SwiftF0' : 'YIN'),
+    read() {
+      if (sfOk && latest && performance.now() - stamp < 250) {
+        if (!latest.freq || latest.conf < 0.5) return null;
+        return { freq: latest.freq, clarity: 0.86 + 0.14 * latest.conf };
+      }
+      an.getFloatTimeDomainData(buf);
+      return detectPitch(buf, c.sampleRate);
+    },
+    stop() { clearInterval(timer); try { proc.disconnect(); src.disconnect(); } catch (e) {} },
+  };
+}
 
 const DEG = ['القرار', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة'];
 let active = []; // دوال إيقاف
@@ -63,7 +96,7 @@ export function playAlong(host, ctx) {
   }
   redraw();
 
-  let stream = null, raf = 0, an = null, buf = null, smooth = null, lastFlash = 0, lastKey = '';
+  let stream = null, raf = 0, mic = null, smooth = null, lastFlash = 0, lastKey = '';
   let pending = false, dead = false;
   async function start() {
     if (pending) return;
@@ -74,22 +107,20 @@ export function playAlong(host, ctx) {
       pending = false; btn.disabled = false;
       if (dead || !host.isConnected) { st.getTracks().forEach(t => t.stop()); return; }
       stream = st;
-      const src = c.createMediaStreamSource(stream);
-      an = c.createAnalyser(); an.fftSize = 4096; src.connect(an);
-      buf = new Float32Array(an.fftSize);
+      mic = micPitchSource(c, stream);
       btn.textContent = '■ أوقف';
       loop();
     } catch (e) { pending = false; btn.disabled = false; info.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; }
   }
   function stop() {
     cancelAnimationFrame(raf);
+    if (mic) { mic.stop(); mic = null; }
     if (stream) stream.getTracks().forEach(t => t.stop());
     stream = null; btn.textContent = '🎸 ابدأ: اعزف وأنا أسمعك';
   }
   active.push(() => { dead = true; stop(); });
   function loop() {
-    an.getFloatTimeDomainData(buf);
-    const r = detectPitch(buf, getCtx().sampleRate);
+    const r = mic.read();
     if (r && r.freq > 70 && r.freq < 1400 && r.clarity > 0.85) {
       smooth = smooth && Math.abs(1200 * Math.log2(r.freq / smooth)) < 60 ? smooth * 0.7 + r.freq * 0.3 : r.freq;
       const abs = 1200 * Math.log2(smooth / 440) + 6900 - tuning;
@@ -324,9 +355,10 @@ export function songTrainer(host, res, best, audioUrl = null) {
   nextB.addEventListener('click', () => { if (pi < phrases.length - 1) { pi++; draw(); } });
 
   // ===== وضع «دورك»: ينتظر كل نوتة =====
-  let stream = null, raf = 0, an = null, buf = null;
+  let stream = null, raf = 0, tmic = null;
   function stopListen() {
     cancelAnimationFrame(raf);
+    if (tmic) { tmic.stop(); tmic = null; }
     if (stream) stream.getTracks().forEach(t => t.stop());
     stream = null; yourTurn.textContent = '🎤 دورك: اعزفها';
     fbh.querySelectorAll('.fb-dot.target').forEach(d => d.classList.remove('target'));
@@ -343,9 +375,7 @@ export function songTrainer(host, res, best, audioUrl = null) {
       yourTurn.disabled = false;
       if (!host.isConnected) { st.getTracks().forEach(t => t.stop()); return; }
       stream = st;
-      const src = c.createMediaStreamSource(stream);
-      an = c.createAnalyser(); an.fftSize = 4096; src.connect(an);
-      buf = new Float32Array(an.fftSize);
+      tmic = micPitchSource(c, stream);
     } catch (e) { yourTurn.disabled = false; msg.textContent = 'لا يمكن الوصول للمايكروفون. اسمح للتطبيق باستخدامه من إعدادات الجهاز.'; return; }
     yourTurn.textContent = '■ أوقف';
     const ph = phrases[pi];
@@ -360,8 +390,7 @@ export function songTrainer(host, res, best, audioUrl = null) {
     };
     markTarget();
     const loop = () => {
-      an.getFloatTimeDomainData(buf);
-      const r = detectPitch(buf, getCtx().sampleRate);
+      const r = tmic.read();
       const now = performance.now();
       if (r && r.clarity > 0.85 && r.freq > 70 && r.freq < 1400) {
         const cents = 1200 * Math.log2(r.freq / 440) + 6900;
