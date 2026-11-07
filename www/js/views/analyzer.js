@@ -3,7 +3,8 @@ import { h, card, slider, toast, icon, askText, toggle } from '../ui.js';
 import { canonicalArtist, artistsList } from './songbook.js';
 import { getCtx, stopAll } from '../audio.js';
 import { MAQAMAT, AJNAS, MAQAM_CHARACTER, spelledName, stepsToOffsets } from '../theory.js';
-import { SR, tonicFromQ, trackPitch, analyzeFrames, FRAME, HOP } from '../maqam-analyzer.js';
+import { SR, tonicFromQ, trackPitch, analyzeFrames, framesFromSwift, FRAME, HOP } from '../maqam-analyzer.js';
+import { loadSwiftF0, detect as sfDetect } from '../swiftf0.js';
 import { ALL } from '../lessons/index.js';
 import * as store from '../store.js';
 import { activity } from '../screen.js';
@@ -35,6 +36,51 @@ function inWorker(path, msg, transfer, onProgress) {
     w.onerror = e => { w.terminate(); if (state.worker === w) state.worker = null; reject(e); };
     w.postMessage(msg, transfer);
   });
+}
+// عزل صوت المغني على دفعات (60 ثانية مع تداخل ثانيتين ودمج ناعم)
+// حتى لا تمتلئ الذاكرة مع الأغاني الطويلة
+async function isolateVocals(buf, start, len, onProgress, alive) {
+  const CH = 60, OV = 2, OUT = 22050;
+  const total = Math.ceil(len * OUT);
+  const acc = new Float32Array(total);
+  const w = new Worker(new URL('../workers/sep-worker.js', import.meta.url), { type: 'module' });
+  if (state.worker) state.worker.terminate();
+  state.worker = w;
+  const chunks = [];
+  for (let cs = 0; cs < len; cs += CH) chunks.push(cs);
+  try {
+    for (let k = 0; k < chunks.length; k++) {
+      const cs = chunks[k];
+      const a = Math.max(0, cs - OV), b = Math.min(len, cs + CH + OV);
+      const off = new OfflineAudioContext(2, Math.max(1, Math.ceil((b - a) * 44100)), 44100);
+      const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start(0, start + a, b - a);
+      const r = await off.startRendering();
+      if (!alive()) return null;
+      const L = new Float32Array(r.getChannelData(0)), R = new Float32Array(r.getChannelData(1));
+      const v = await new Promise((resolve, reject) => {
+        w.onmessage = e => {
+          if (e.data.progress != null) { onProgress((k + e.data.progress) / chunks.length); return; }
+          if (e.data.error) reject(new Error(e.data.error)); else resolve(e.data.vocals);
+        };
+        w.onerror = reject;
+        w.postMessage({ L, R, id: k }, [L.buffer, R.buffer]);
+      });
+      if (!v) return null;
+      const i0 = Math.round(a * OUT), last = k === chunks.length - 1;
+      for (let i = 0; i < v.length && i0 + i < total; i++) {
+        const t = a + i / OUT;
+        let g = 1;
+        if (cs > 0) g = Math.min(g, Math.max(0, Math.min(1, (t - (cs - OV)) / (2 * OV))));
+        if (!last) g = Math.min(g, Math.max(0, Math.min(1, ((cs + CH + OV) - t) / (2 * OV))));
+        acc[i0 + i] += v[i] * g;
+      }
+    }
+  } finally {
+    w.terminate(); if (state.worker === w) state.worker = null;
+  }
+  const ab = getCtx().createBuffer(1, total, OUT);
+  ab.copyToChannel(acc, 0);
+  return ab;
 }
 function stopRec() {
   if (state.proc) { try { state.proc.disconnect(); } catch (e) {} state.proc = null; }
@@ -264,19 +310,10 @@ export function renderAnalyzer(app, openSongId = null) {
       let vocals = null;
       state.vocals = null;
       if (store.settings().isolateVocals !== false) {
-        label.textContent = '🎤 عزل صوت المغني عن الموسيقى… (أبطأ خطوة)';
-        const off44 = new OfflineAudioContext(2, Math.ceil(len * 44100), 44100);
-        const s44 = off44.createBufferSource(); s44.buffer = decoded; s44.connect(off44.destination); s44.start(0, start, len);
-        const r44 = await off44.startRendering();
+        label.textContent = len > 120 ? '🎤 عزل صوت المغني عن الموسيقى… (أبطأ خطوة، وقد تأخذ عدة دقائق مع الأغاني الطويلة)' : '🎤 عزل صوت المغني عن الموسيقى… (أبطأ خطوة)';
+        vocals = await isolateVocals(decoded, start, len, setP(0, 0.6), alive).catch(e => { console.warn(e); return null; });
         if (!alive()) return;
-        const L = new Float32Array(r44.getChannelData(0)), R = new Float32Array(r44.getChannelData(1));
-        const v = await inWorker('../workers/sep-worker.js', { L, R }, [L.buffer, R.buffer], setP(0, 0.6)).catch(e => { console.warn(e); return null; });
-        if (!alive()) return;
-        if (v && v.vocals) {
-          vocals = getCtx().createBuffer(1, v.vocals.length, 44100);
-          vocals.copyToChannel(v.vocals, 0);
-          state.vocals = vocals;
-        }
+        if (vocals) state.vocals = vocals;
       }
       // 2) تحويل لقناة واحدة 11025Hz (YIN) و16kHz (SwiftF0)
       const prep = async (buf, offset) => {
@@ -463,7 +500,7 @@ export function renderAnalyzer(app, openSongId = null) {
     results.append(card('حوّل الأغنية إلى تدريب',
       h('div', { class: 'row' },
         tbtn('🎸 اعزف معي', () => playAlong(toolHost, { id: b.id, q: b.q, tuning: res.tuningOffset })),
-        res.notes && res.notes.length ? tbtn('🎯 درّبني على اللحن', () => songTrainer(toolHost, res, b, saved ? null : state.url)) : null,
+        res.notes && res.notes.length ? tbtn('🎯 درّبني على اللحن', () => songTrainer(toolHost, res, b, saved ? null : state.url, saved ? null : (res.vocalShare != null ? state.vocals : null))) : null,
         res.notes && res.notes.length ? tbtn('🎼 اللحن على الزند', () => melodyOnFretboard(toolHost, res, b)) : null,
         tbtn('🥁 رافقني', () => accompaniment(toolHost, b, res.bpm)),
         saveBtn, delBtn), savedLine), toolHost);
@@ -552,6 +589,7 @@ async function startLive(panel, status, alive = () => true) {
     phase -= d.length;
     if (L.len + out.length > CAP) { // أبقِ آخر 20 ثانية
       const keep = SR * 20, cut = L.len - keep;
+      L.cuts = (L.cuts || 0) + 1;
       L.buf.copyWithin(0, cut, L.len); L.len = keep; L.done = Math.max(0, L.done - cut);
     }
     // تكبير تلقائي بسيط
@@ -566,29 +604,43 @@ async function startLive(panel, status, alive = () => true) {
   const sub = h('div', { class: 'muted' }, 'شغّل الأغنية قرب الجوال');
   const conf = h('span', { class: 'pill' }, '—');
   const bpmEl = h('span', { class: 'pill' }, 'BPM —');
+  const engineEl = h('span', { class: 'pill', style: { fontSize: '.7rem' } }, 'YIN');
   const mood = h('div', { class: 'muted', style: { fontSize: '.85rem' } });
   const canvas = h('canvas', { style: { width: '100%', height: '200px', display: 'block', background: 'var(--bg2)', borderRadius: '10px', marginTop: '10px' } });
   const histHost = h('div');
   const links = h('div', { class: 'row', style: { marginTop: '8px' } });
   panel.append(h('section', { class: 'card hl' },
-    h('div', { class: 'row between' }, h('span', { class: 'row' }, h('span', { class: 'rec' }), h('span', { class: 'muted' }, 'استماع مباشر')), h('span', { class: 'row' }, bpmEl, conf)),
+    h('div', { class: 'row between' }, h('span', { class: 'row' }, h('span', { class: 'rec' }), h('span', { class: 'muted' }, 'استماع مباشر')), h('span', { class: 'row' }, engineEl, bpmEl, conf)),
     name, sub, mood, canvas, histHost, links,
     h('p', { class: 'muted', style: { fontSize: '.78rem', margin: '8px 0 0' } }, 'الخطوط الأفقية = درجات المقام المكتشف. النقاط = اللحن الذي يسمعه التطبيق الآن.')));
   status.textContent = '';
 
-  // تتبع الطبقة دورياً
+  // تتبع الطبقة دورياً: SwiftF0 إن توفر (مع نصف ثانية سياق قبل الجزء الجديد)، وإلا YIN
   const need = FRAME + Math.floor(SR / 70) + 2;
-  L.timer = setInterval(() => {
-    if (L.len - L.done < need + HOP * 4) return;
-    const seg = L.buf.subarray(L.done, L.len);
-    const fr = trackPitch(seg);
-    const tBase = L.frames.length ? L.frames[L.frames.length - 1].t + HOP / SR : 0;
-    fr.forEach((f, i) => { f.t = tBase + i * HOP / SR; });
-    L.frames.push(...fr);
-    L.done += fr.length * HOP;
-    const maxF = Math.round(25 / (HOP / SR));
-    if (L.frames.length > maxF) L.frames.splice(0, L.frames.length - maxF);
-    draw();
+  let sfReady = false, busy = false;
+  loadSwiftF0().then(sess => { sfReady = !!sess; if (sfReady) engineEl.textContent = 'SwiftF0'; });
+  const to16 = x => { const r = 16000 / SR, n = Math.floor(x.length * r), y = new Float32Array(n); for (let i = 0; i < n; i++) { const p = i / r, a = Math.floor(p), f = p - a; y[i] = x[a] * (1 - f) + (x[a + 1] ?? x[a]) * f; } return y; };
+  L.timer = setInterval(async () => {
+    if (busy || L.len - L.done < need + HOP * 4) return;
+    busy = true;
+    try {
+      let fr;
+      if (sfReady) {
+        const ctxS = Math.min(L.done, HOP * Math.round(SR * 0.5 / HOP));
+        const cuts = L.cuts, done = L.done;
+        const segX = L.buf.slice(done - ctxS, L.len);
+        const sf = await sfDetect(to16(segX));
+        if (state.live !== L || L.cuts !== cuts || L.done !== done) return;
+        fr = sf ? framesFromSwift(segX, sf).slice(ctxS / HOP) : trackPitch(segX.subarray(ctxS));
+      } else fr = trackPitch(L.buf.subarray(L.done, L.len));
+      const tBase = L.frames.length ? L.frames[L.frames.length - 1].t + HOP / SR : 0;
+      fr.forEach((f, i) => { f.t = tBase + i * HOP / SR; });
+      L.frames.push(...fr);
+      L.done += fr.length * HOP;
+      const maxF = Math.round(25 / (HOP / SR));
+      if (L.frames.length > maxF) L.frames.splice(0, L.frames.length - maxF);
+      draw();
+    } finally { busy = false; }
   }, 200);
 
   // تحليل المقام كل ثانية ونصف

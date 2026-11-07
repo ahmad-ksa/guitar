@@ -301,7 +301,20 @@ export function accompaniment(host, best, bpm0) {
 
 // ===================== مدرّب لحن الأغنية =====================
 // يقسم اللحن إلى جمل: اسمع الأصل ← شاهد على الزند ← اعزف أنت، والتطبيق ينتظرك على كل نوتة
-export function songTrainer(host, res, best, audioUrl = null) {
+// تحويل AudioBuffer أحادي إلى ملف WAV (لتشغيله بسرعة أبطأ مع الحفاظ على الطبقة)
+function wavUrl(buf) {
+  const x = buf.getChannelData(0), sr = buf.sampleRate, n = x.length;
+  const b = new DataView(new ArrayBuffer(44 + n * 2));
+  const w = (o, str) => { for (let i = 0; i < str.length; i++) b.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, 'RIFF'); b.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true);
+  b.setUint32(24, sr, true); b.setUint32(28, sr * 2, true); b.setUint16(32, 2, true); b.setUint16(34, 16, true); w(36, 'data'); b.setUint32(40, n * 2, true);
+  let pk = 0; for (let i = 0; i < n; i++) pk = Math.max(pk, Math.abs(x[i]));
+  const g = pk > 0 ? 0.9 / pk : 1;
+  for (let i = 0; i < n; i++) b.setInt16(44 + i * 2, Math.max(-32768, Math.min(32767, Math.round(x[i] * g * 32767))), true);
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+}
+
+export function songTrainer(host, res, best, audioUrl = null, vocalsBuf = null) {
   host.innerHTML = '';
   const mm = mapMelody(res);
   if (!mm) { host.append(card(null, h('p', {}, 'لم أجد لحناً واضحاً كافياً لبناء تدريب. جرّب مقطعاً فيه غناء أو عزف منفرد واضح.'))); return; }
@@ -331,6 +344,9 @@ export function songTrainer(host, res, best, audioUrl = null) {
   const seq = h('div', { class: 'row', style: { gap: '4px', direction: 'ltr', justifyContent: 'center', margin: '6px 0' } });
   const listenOrig = h('button', { class: 'btn' }, '🎧 اسمع من الأغنية');
   const listenGtr = h('button', { class: 'btn' }, '🎸 بصوت الجيتار');
+  const listenVoc = vocalsBuf ? h('button', { class: 'btn' }, '🎤 صوت المغني فقط') : null;
+  let vocUrl = null;
+  active.push(() => { if (vocUrl) { URL.revokeObjectURL(vocUrl); vocUrl = null; } });
   const yourTurn = h('button', { class: 'btn primary' }, '🎤 دورك: اعزفها');
   const prevB = h('button', { class: 'btn small' }, '→ السابقة');
   const nextB = h('button', { class: 'btn small' }, 'التالية ←');
@@ -340,7 +356,7 @@ export function songTrainer(host, res, best, audioUrl = null) {
     h('p', { class: 'muted', style: { fontSize: '.85rem' } }, `قسّمت اللحن إلى ${phrases.length === 1 ? 'جملة واحدة' : phrases.length === 2 ? 'جملتين' : phrases.length <= 10 ? phrases.length + ' جمل' : phrases.length + ' جملة'}. لكل جملة: اسمعها، شاهدها على الزند، ثم اعزفها وأنا أنتظرك على كل نوتة.`),
     title, dots, msg, h('div', { class: 'row' }, labSeg), fbh, seq,
     slider('سرعة العرض', 0.3, 1.2, 0.05, speed, v => { speed = v; }, v => `${Math.round(v * 100)}%`),
-    h('div', { class: 'row' }, listenOrig, listenGtr), h('div', { class: 'row', style: { marginTop: '8px' } }, yourTurn),
+    h('div', { class: 'row' }, listenOrig, listenVoc, listenGtr), h('div', { class: 'row', style: { marginTop: '8px' } }, yourTurn),
     h('div', { class: 'row between', style: { marginTop: '10px' } }, prevB, nextB)));
   if (!audioUrl) { listenOrig.disabled = true; listenOrig.title = 'متاح عند رفع ملف'; }
 
@@ -370,19 +386,20 @@ export function songTrainer(host, res, best, audioUrl = null) {
     const ph = phrases[pi]; const t0 = ph[0].t;
     player.play({ events: ph.map(e => ({ ...e, t: e.t - t0 })), beats: ph[ph.length - 1].t - t0 + ph[ph.length - 1].d + 0.5 }, 60 * speed, { metronome: false, countIn: false });
   });
-  listenOrig.addEventListener('click', () => {
-    if (!audioUrl) return;
+  function playPhrase(url, base) {
     stopListen(); player.stop(); stopAudio();
     const ph = phrases[pi];
-    const a0 = offset + ph[0].src - 0.15, a1 = offset + ph[ph.length - 1].src + ph[ph.length - 1].d + 0.3;
-    const a = new Audio(audioUrl); audio = a;
+    const a0 = base + ph[0].src - 0.15, a1 = base + ph[ph.length - 1].src + ph[ph.length - 1].d + 0.3;
+    const a = new Audio(url); audio = a;
     a.currentTime = Math.max(0, a0);
     try { a.preservesPitch = true; } catch (e) {}
     a.playbackRate = Math.max(0.5, speed);
     a.play();
     const tick = () => { if (audio !== a) return; if (a.currentTime >= a1) { stopAudio(); } else requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
-  });
+  }
+  listenOrig.addEventListener('click', () => { if (audioUrl) playPhrase(audioUrl, offset); });
+  if (listenVoc) listenVoc.addEventListener('click', () => { if (!vocUrl) vocUrl = wavUrl(vocalsBuf); playPhrase(vocUrl, 0); });
   prevB.addEventListener('click', () => { if (pi > 0) { pi--; draw(); } });
   nextB.addEventListener('click', () => { if (pi < phrases.length - 1) { pi++; draw(); } });
 
