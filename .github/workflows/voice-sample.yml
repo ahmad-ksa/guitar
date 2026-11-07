@@ -12,7 +12,7 @@ jobs:
         with: { node-version: 22 }
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
-      - run: pip install silma_tts edge-tts
+      - run: pip install silma_tts edge-tts && pip uninstall -y torchcodec || true
       - run: node tools/voice-list.mjs voice-list.json
       - run: python tools/silma_sample.py voice-list.json samples
       - name: edge-tts للمقارنة
