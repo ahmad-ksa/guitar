@@ -10,6 +10,6 @@ print('refs', refs[:5])
 tts = SilmaTTS()
 for i, it in enumerate(items[:6]):
     wav_path = os.path.join(out, f"silma_{i}.wav")
-    tts.infer(ref_file=refs[0], ref_text=None, gen_text=it['text'], file_wave=wav_path, seed=7, speed=1)
+    tts.infer(ref_file=refs[0], ref_text='', gen_text=it['text'], file_wave=wav_path, seed=7, speed=1)
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', wav_path, '-b:a', '64k', wav_path.replace('.wav', '.mp3')])
     print(i, it['text'][:60])
