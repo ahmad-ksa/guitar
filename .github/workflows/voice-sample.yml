@@ -1,0 +1,29 @@
+name: عينة صوت SILMA
+on: workflow_dispatch
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install silma_tts edge-tts
+      - run: node tools/voice-list.mjs voice-list.json
+      - run: python tools/silma_sample.py voice-list.json samples
+      - name: edge-tts للمقارنة
+        run: |
+          python - <<'PY'
+          import json, asyncio, edge_tts
+          items = json.load(open('voice-list.json'))[:6]
+          async def go():
+              for i, it in enumerate(items):
+                  await edge_tts.Communicate(it['text'], 'ar-SA-HamedNeural').save(f'samples/hamed_{i}.mp3')
+          asyncio.run(go())
+          PY
+      - uses: actions/upload-artifact@v4
+        with: { name: voice-samples, path: 'samples/*.mp3' }
