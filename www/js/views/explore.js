@@ -54,7 +54,7 @@ export function renderExplore(app, params = {}) {
     const kindSeg = h('div', { class: 'seg' }, [['scale', 'سلالم غربية'], ['maqam', 'مقامات عربية']].map(([k, l]) =>
       h('button', { class: st.kind === k ? 'on' : '', onclick: () => { st.kind = k; st.id = k === 'scale' ? 'major' : 'bayati'; st.root = k === 'scale' ? 0 : MAQAMAT.bayati.root; st.box = 0; draw(); } }, l)));
     const sSel = select(scaleOpts(), st.id, v => { st.id = v; if (st.kind === 'maqam') st.root = MAQAMAT[v].root; st.box = 0; draw(); });
-    const rSel = select(ROOTS.map(r => ({ value: r.pc, label: rq() && r.pc === st.root ? pcName(r.pc) + ' ½' : pcName(r.pc) })), st.root, v => { st.root = +v; draw(); });
+    const rSel = select(ROOTS.map(r => ({ value: r.pc, label: rq() ? noteName(r.pc * 2 + 1) : pcName(r.pc) })), st.root, v => { st.root = +v; draw(); });
     const viewSeg = h('div', { class: 'seg' }, [['all', 'الرقبة كاملةً'], ['pos', 'موضع'], ['box', 'صناديق'], ['string', 'وتر واحد']].map(([k, l]) =>
       h('button', { class: st.view === k ? 'on' : '', onclick: () => { st.view = k; draw(); } }, l)));
     const labSeg = h('div', { class: 'seg' }, [['note', 'النوتة'], ['degree', 'الدرجة'], ['finger', 'الإصبع']].map(([k, l]) =>
