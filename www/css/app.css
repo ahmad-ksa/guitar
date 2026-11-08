@@ -225,3 +225,7 @@ body.light .hero { color: #f6ead9; }
 .fb-dot.target circle { stroke: var(--chord); stroke-width: 4; animation: targetPulse 1s ease-in-out infinite; }
 @keyframes targetPulse { 50% { stroke-width: 7; } }
 .video-btn { width: 100%; margin: 0 0 14px; font-size: 1rem; }
+.ask-clear { position: absolute; inset-inline-end: 6px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--line); color: var(--text); font-size: .85rem; cursor: pointer; }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto; }
+.ask-chip { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: .9rem; cursor: pointer; }
+.ask-chip.on { background: var(--accent); color: #1b1815; border-color: var(--accent); }

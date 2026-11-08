@@ -1,3 +1,4 @@
+import { normalizeAr } from './arabic-search.js';
 // أدوات بناء الواجهة
 export function h(tag, attrs = {}, ...children) {
   const e = document.createElement(tag);
@@ -92,17 +93,34 @@ export function icon(name) {
 // نافذة إدخال نص بأزرار «موافق» و«تخطي»، مع اقتراحات اختيارية
 export function askText({ title, placeholder = '', value = '', suggestions = [], okLabel = 'موافق', skipLabel = 'تخطي' }) {
   return new Promise(resolve => {
-    const listId = 'dl' + Math.random().toString(36).slice(2);
-    const input = h('input', { type: 'text', value, placeholder, list: suggestions.length ? listId : null, style: { width: '100%', fontSize: '1.05rem' } });
-    const dl = suggestions.length ? h('datalist', { id: listId }, suggestions.map(x => h('option', { value: x }))) : null;
+    // اقتراحات مرسومة داخل النافذة (بدل datalist الذي يعلق في أندرويد)
+    const input = h('input', { type: 'text', value, placeholder, autocomplete: 'off', style: { width: '100%', fontSize: '1.05rem', paddingInlineEnd: '38px' } });
+    const clear = h('button', { class: 'ask-clear', type: 'button', 'aria-label': 'مسح' }, '✕');
+    const field = h('div', { style: { position: 'relative' } }, input, clear);
+    const label = h('div', { class: 'muted', style: { fontSize: '.8rem', margin: '10px 0 6px' } });
+    const chips = h('div', { class: 'ask-chips' });
+    const sugBox = suggestions.length ? h('div', {}, label, chips) : null;
+    const norm = x => normalizeAr(x || '');
+    const render = () => {
+      if (!sugBox) return;
+      const q = norm(input.value);
+      const list = (q ? suggestions.filter(x => norm(x).includes(q)) : suggestions).slice(0, 12);
+      label.textContent = q ? (list.length ? 'اختر من المحفوظ:' : 'اسم جديد — بيُحفظ لك') : 'المحفوظ عندك:';
+      chips.innerHTML = '';
+      list.forEach(x => chips.append(h('button', { type: 'button', class: 'ask-chip' + (norm(x) === q ? ' on' : ''), onclick: () => { input.value = x; render(); } }, x)));
+      clear.style.visibility = input.value ? 'visible' : 'hidden';
+    };
+    input.addEventListener('input', render);
+    clear.addEventListener('click', () => { input.value = ''; render(); input.focus(); });
     const close = v => { overlay.remove(); resolve(v); };
     const ok = h('button', { class: 'btn primary', onclick: () => close(input.value.trim()) }, okLabel);
     const skip = h('button', { class: 'btn', onclick: () => close(null) }, skipLabel);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') close(input.value.trim()); });
-    const box = h('div', { class: 'modal' }, h('h3', { style: { marginTop: 0 } }, title), input, dl, h('div', { class: 'row', style: { marginTop: '12px', justifyContent: 'flex-end' } }, skip, ok));
+    const box = h('div', { class: 'modal' }, h('h3', { style: { marginTop: 0 } }, title), field, sugBox, h('div', { class: 'row', style: { marginTop: '14px', justifyContent: 'flex-end' } }, skip, ok));
     const overlay = h('div', { class: 'overlay' }, box);
     overlay.__close = close;
     document.body.appendChild(overlay);
+    render();
     setTimeout(() => input.focus(), 50);
   });
 }
