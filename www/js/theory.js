@@ -91,6 +91,7 @@ export const AJNAS = {
   sabaZamzam: { name: 'جنس صبا زمزمة', steps: [2,4,2], desc: 'نصف، تون، نصف. صبا بلا ربع تون، الرابعة ناقصة.' },
   saba:     { name: 'جنس صبا', steps: [3,3,2], desc: 'ثلاثة أرباع، ثلاثة أرباع، نصف. الرابعة ناقصة، صوت شجن عميق.' },
   sikah:    { name: 'جنس سيكاه', steps: [3,4], desc: 'ثلاثي يبدأ من نوتة نصف بيمول: ثلاثة أرباع ثم تون.' },
+  lami:     { name: 'جنس لامي', steps: [2,4,4], desc: 'نصف، تون، تون مثل الكرد، لكن لحنه يميل للنزول ويُغنّى مع خامسة مخفوضة. لون عراقي وخليجي.' },
   nikriz:   { name: 'جنس نكريز', steps: [4,2,6,2], desc: 'خماسي: تون، نصف، تون ونصف، نصف.' },
 };
 
@@ -104,6 +105,8 @@ export const MAQAMAT = {
                 desc: 'يقابل الصغير الهارموني صعوداً (الدرجة 7 مرفوعة) والصغير الطبيعي نزولاً. عاطفي ورومانسي.' },
   kurd:       { name: 'مقام الكرد', family: 'كرد', root: 2, asc: [2,4,4,4,2,4,4], ajnas: ['kurd','nahawand'], ghammaz: 3, quarter: false,
                 desc: 'يقابل مود الفريجيان. يبدأ بنصف تون فيعطي حزناً شرقياً، وهو أساس كثير من الأغاني الحديثة.' },
+  lami:       { name: 'مقام اللامي', family: 'كرد', root: 2, asc: [2,4,4,2,4,4,4], ajnas: ['lami','kurd'], ghammaz: 3, quarter: false,
+                desc: 'جاء من التراث العراقي وانتشر في الأغنية الخليجية. مثل الكرد لكن الخامسة مخفوضة (لا♭ من ري)، فيصير الصوت أكثر شجناً.' },
   hijaz:      { name: 'مقام الحجاز', family: 'حجاز', root: 2, asc: [2,6,2,4,2,4,4], ajnas: ['hijaz','nahawand'], ghammaz: 3, quarter: false,
                 desc: 'يقابل الفريجيان دومينانت. البعد الكبير بين الدرجتين 2 و3 هو بصمته. يُستخدم في الأذان والإنشاد والطرب.' },
   hijazkar:   { name: 'مقام الحجازكار', family: 'حجاز', root: 0, asc: [2,6,2,4,2,6,2], ajnas: ['hijaz','hijaz'], ghammaz: 4, quarter: false,
@@ -140,6 +143,7 @@ export const MAQAM_CHARACTER = {
   ajam:        { mood: 'فرح، احتفال، إشراق', mods: ['nahawand', 'kurd', 'hijaz', 'rast'] },
   nahawand:    { mood: 'رومانسية، عاطفة، حنين', mods: ['hijaz', 'kurd', 'ajam', 'nikriz'] },
   kurd:        { mood: 'شجن هادئ، تأمل', mods: ['nahawand', 'hijaz', 'bayati', 'ajam'] },
+  lami:        { mood: 'شجن خليجي وعراقي، حنين', mods: ['kurd', 'hijaz', 'nahawand', 'bayati'] },
   hijaz:       { mood: 'روحانية، شوق، طابع صحراوي', mods: ['bayati', 'rast', 'nahawand', 'saba'] },
   hijazkar:    { mood: 'فخامة، دراما', mods: ['nahawand', 'hijaz', 'nikriz'] },
   nikriz:      { mood: 'غموض، توتر جميل', mods: ['nahawand', 'rast', 'hijaz'] },

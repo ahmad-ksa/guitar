@@ -45,14 +45,14 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: www/audio/voice
-          key: voice-hamed-${{ hashFiles('voice-list.json') }}
+          key: voice-hamed-${{ hashFiles('voice-list.json', 'www/data/pronounce.json') }}
           restore-keys: voice-hamed-
 
       - name: توليد الصوت العربي الطبيعي
         continue-on-error: true
         run: |
           pip install edge-tts
-          python tools/gen_voice.py voice-list.json www/audio/voice ar-SA-HamedNeural
+          python tools/gen_voice.py voice-list.json www/audio/voice ar-SA-HamedNeural --pronounce
           du -sh www/audio/voice
 
       - name: نسخ ملفات التطبيق إلى مشروع أندرويد

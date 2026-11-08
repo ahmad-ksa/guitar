@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['www/js/lessons/**', 'www/video/**', 'tools/render_videos.py', '.github/workflows/videos.yml']
+    paths: ['www/js/lessons/**', 'www/video/**', 'www/data/pronounce.json', 'tools/render_videos.py', '.github/workflows/videos.yml']
 permissions:
   contents: write
 concurrency: { group: videos, cancel-in-progress: false }
@@ -20,7 +20,7 @@ jobs:
         with: { python-version: '3.11' }
       - run: node tools/voice-list.mjs voice-list.json --video
       - id: k
-        run: echo "key=voice-video-${{ hashFiles('voice-list.json') }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=voice-video-${{ hashFiles('voice-list.json', 'www/data/pronounce.json') }}" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
         with:
           path: www/audio/voice
@@ -28,7 +28,7 @@ jobs:
           restore-keys: |
             voice-video-
             voice-hamed-
-      - run: pip install edge-tts && python tools/gen_voice.py voice-list.json www/audio/voice ar-SA-HamedNeural
+      - run: pip install edge-tts && python tools/gen_voice.py voice-list.json www/audio/voice ar-SA-HamedNeural --pronounce
 
   render:
     needs: voices

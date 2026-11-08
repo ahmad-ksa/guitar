@@ -34,7 +34,7 @@ async def main():
         for lid in ids:
             # بصمة المحتوى: نص الدرس + نسخة المحرك
             sig = await pg.evaluate("id => window.videoLessonSig(id)", lid)
-            eng = ''.join(open(os.path.join(os.path.dirname(__file__), '..', 'www', 'video', f), encoding='utf-8').read() for f in ('render.js', 'figures.js'))
+            eng = ''.join(open(os.path.join(os.path.dirname(__file__), '..', 'www', 'video', f), encoding='utf-8').read() for f in ('render.js', 'figures.js')) + open(os.path.join(os.path.dirname(__file__), '..', 'www', 'data', 'pronounce.json'), encoding='utf-8').read()
             h = hashlib.sha1((sig + eng).encode()).hexdigest()[:16]
             mp4 = os.path.join(OUT, f'{lid}.mp4')
             if manifest.get(lid, {}).get('hash') == h and (REMOTE or os.path.exists(mp4)):
