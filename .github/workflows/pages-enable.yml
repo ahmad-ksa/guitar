@@ -1,0 +1,17 @@
+name: تفعيل GitHub Pages
+on: workflow_dispatch
+permissions:
+  pages: write
+  contents: read
+  id-token: write
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/configure-pages@v5
+        with: { enablement: true }
+      - name: ضبط المصدر على فرع gh-pages
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh api -X PUT repos/${{ github.repository }}/pages -f build_type=legacy -f 'source[branch]=gh-pages' -f 'source[path]=/' || gh api -X POST repos/${{ github.repository }}/pages -f build_type=legacy -f 'source[branch]=gh-pages' -f 'source[path]=/' || true
+          gh api repos/${{ github.repository }}/pages || true
