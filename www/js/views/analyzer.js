@@ -453,7 +453,7 @@ export function renderAnalyzer(app, openSongId = null) {
       MAQAM_CHARACTER[b.id] ? h('div', { class: 'muted', style: { fontSize: '.82rem', marginTop: '4px' } }, 'يتحول عادة إلى: ' + MAQAM_CHARACTER[b.id].mods.map(k => MAQAMAT[k].name.replace('مقام ', '')).join('، ')) : null,
       conf < 45 ? h('p', { style: { fontSize: '.88rem', color: 'var(--quarter)' } }, 'المقامات المرشحة متقاربة. جرّب مقطعاً أطول يصعد فيه اللحن للجنس الأعلى، أو قارن بالدليل أدناه.') : null,
       h('div', { class: 'row', style: { marginTop: '8px' } },
-        h('a', { class: 'btn primary small', href: `#/explore/maqam/${b.id}/${t.pc}` }, '🗺️ اعزفه على الزند'),
+        h('a', { class: 'btn primary small', href: `#/explore/maqam/${b.id}/${t.pc}` }, '🗺️ اعزفه على الرقبة'),
         ls ? h('a', { class: 'btn small', href: `#/lesson/${ls.id}` }, '📘 درس المقام') : null)));
 
     // المرشحون
@@ -518,7 +518,7 @@ export function renderAnalyzer(app, openSongId = null) {
       h('div', { class: 'row' },
         tbtn('🎸 اعزف معي', () => playAlong(toolHost, { id: b.id, q: b.q, tuning: res.tuningOffset })),
         res.notes && res.notes.length ? tbtn('🎯 درّبني على اللحن', () => songTrainer(toolHost, res, b, saved ? null : state.url, saved ? null : (res.vocalShare != null ? state.vocals : null))) : null,
-        res.notes && res.notes.length ? tbtn('🎼 اللحن على الزند', () => melodyOnFretboard(toolHost, res, b)) : null,
+        res.notes && res.notes.length ? tbtn('🎼 اللحن على الرقبة', () => melodyOnFretboard(toolHost, res, b)) : null,
         tbtn('🥁 رافقني', () => accompaniment(toolHost, b, res.bpm)),
         saveBtn, delBtn), savedLine), toolHost);
     if (state.vocals && !saved) {
@@ -706,7 +706,7 @@ async function startLive(panel, status, alive = () => true) {
     histHost.innerHTML = ''; histHost.append(histogramSvg(res.histogram, b));
     links.innerHTML = '';
     const ls = lessonFor(b.id);
-    links.append(h('a', { class: 'btn primary small', href: `#/explore/maqam/${b.id}/${tonicFromQ(b.q).pc}` }, '🗺️ على الزند'), ls ? h('a', { class: 'btn small', href: `#/lesson/${ls.id}` }, '📘 الدرس') : null);
+    links.append(h('a', { class: 'btn primary small', href: `#/explore/maqam/${b.id}/${tonicFromQ(b.q).pc}` }, '🗺️ على الرقبة'), ls ? h('a', { class: 'btn small', href: `#/lesson/${ls.id}` }, '📘 الدرس') : null);
   }, 1500);
 
   function draw() {

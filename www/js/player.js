@@ -1,4 +1,4 @@
-// مشغل التمارين: يزامن صوت الجيتار مع إضاءة الزند والمترونوم
+// مشغل التمارين: يزامن صوت الجيتار مع إضاءة الرقبة والمترونوم
 import { getCtx, pluck, click, stopAll, drum, droneStart, droneStop } from './audio.js';
 import { freqOfQ } from './theory.js';
 import { activity } from './screen.js';

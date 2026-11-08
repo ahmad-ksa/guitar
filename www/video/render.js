@@ -1,4 +1,4 @@
-// محرك فيديو الدروس: يبني مشاهد الفيديو من محتوى الدرس (الشرح المسموع، الزند المتحرك،
+// محرك فيديو الدروس: يبني مشاهد الفيديو من محتوى الدرس (الشرح المسموع، الرقبة المتحركة،
 // الرسومات، الترجمة) ويرسم أي لحظة t على لوحة 1280×720، ويولّد شريط الصوت كاملاً.
 // يستخدمه سكربت tools/render-videos.mjs لإنتاج ملفات MP4.
 import { lessonById, ALL } from '../js/lessons/index.js';
@@ -161,7 +161,7 @@ function subtitle(g, v, local) {
   lines.forEach((ln, i) => txt(g, ln, W / 2, y0 + 36 + i * 46, 30, '#fff'));
 }
 
-// زند على اللوحة
+// رقبة على اللوحة
 function fretboard(g, ex, active, t, appear) {
   const from = ex.from, to = ex.to, n = to - from;
   const left = from === 0 ? 110 : 70, right = 40, top = 150, gap = Math.min(58, 300 / 5);

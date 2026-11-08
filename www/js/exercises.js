@@ -1,4 +1,4 @@
-// مولّد التمارين: يحوّل وصفاً مختصراً إلى نوتات على الزند وتسلسل زمني للعزف
+// مولّد التمارين: يحوّل وصفاً مختصراً إلى نوتات على الرقبة وتسلسل زمني للعزف
 import { OPEN_STRINGS, getScale, scaleOffsets, noteName, spelledName, chordVoicings, degreeLabel, parseChord } from './theory.js';
 
 const openQ = s => OPEN_STRINGS[s] * 2;
@@ -86,7 +86,7 @@ export function windowPattern(scaleId, rootPc, from, to, { rootQuarter = false, 
   return out;
 }
 
-// كل مواضع السلم على الزند (للعرض في المستكشف)
+// كل مواضع السلم على الرقبة (للعرض في المستكشف)
 export function allPositions(scaleId, rootPc, from = 0, to = 15, { rootQuarter = false, dir = 'asc' } = {}) {
   const tones = scaleTones(scaleId, rootPc, rootQuarter, dir);
   const set = new Map(tones.map(t => [t.q, t.deg]));

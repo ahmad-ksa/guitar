@@ -1,4 +1,4 @@
-// أدوات ما بعد التحليل: «اعزف معي»، اللحن على الزند، المرافقة التلقائية
+// أدوات ما بعد التحليل: «اعزف معي»، اللحن على الرقبة، المرافقة التلقائية
 import { h, card, slider, toggle, select, toast } from '../ui.js';
 import { getCtx, detectPitch, drum, droneStart, droneStop, stopAll } from '../audio.js';
 import { MAQAMAT, RHYTHMS, OPEN_STRINGS, spelledName, stepsToOffsets, freqOfQ, ROOTS, pcName } from '../theory.js';
@@ -143,7 +143,7 @@ export function playAlong(host, ctx) {
       if (inScale) stats.hits[best.c] = (stats.hits[best.c] || 0) + 1;
       degRow.querySelectorAll('.pill').forEach(p => p.classList.toggle('ok', !!stats.hits[+p.dataset.c]));
       if (stats.total % 10 === 0) stat.innerHTML = '', stat.append(h('span', {}, `داخل المقام: ${Math.round(100 * stats.inS / stats.total)}%`), h('span', { class: 'muted' }, `درجات عزفتها: ${Object.keys(stats.hits).length}/${stepsToOffsets(MAQAMAT[id].asc).length}`));
-      // أضئ موضع النوتة على الزند (أقرب موضع للسابق)
+      // أضئ موضع النوتة على الرقبة (أقرب موضع للسابق)
       const now = performance.now();
       const key = Math.round(abs / 50);
       if (fb && (key !== lastKey || now - lastFlash > 400)) {
@@ -160,10 +160,10 @@ export function playAlong(host, ctx) {
   btn.addEventListener('click', () => (stream ? stop() : start()));
 }
 
-// ===================== اللحن على الزند =====================
+// ===================== اللحن على الرقبة =====================
 // يحوّل نوتات اللحن إلى مواضع على الجيتار ويعزفها ببطء مع الإضاءة
 // يحوّل نوتات اللحن إلى مواضع على الجيتار بأقل حركة لليد (t نسبي لأول نوتة، t0 = زمن أول نوتة في المقطع)
-// اختيار أصابع ذكي (Viterbi): لكل نوتة عدة أماكن على الزند، نختار المسار
+// اختيار أصابع ذكي (Viterbi): لكل نوتة عدة أماكن على الرقبة، نختار المسار
 // الذي يقلّل تحريك اليد وقفز الأوتار، ويفضّل البقاء في «منطقة» واحدة
 // (4 دساتين) ما أمكن، مع السماح بالانتقال عند الوقفات الطويلة
 export function fingerMelody(qs, notes = []) {
@@ -248,7 +248,7 @@ export function melodyOnFretboard(host, res, best) {
   active.push(() => player.stop());
   const playBtn = h('button', { class: 'btn primary' }, '▶ اعزف اللحن');
   const tab = h('div', { class: 'ltr', style: { fontFamily: 'monospace', fontSize: '.78rem', whiteSpace: 'pre', overflowX: 'auto', background: 'var(--bg2)', padding: '8px', borderRadius: '8px', marginTop: '8px' } });
-  host.append(card('اللحن على الزند', h('p', { class: 'muted', style: { fontSize: '.85rem' } }, `حوّلت ${events.length} ${events.length >= 3 && events.length <= 10 ? 'نوتات' : 'نوتة'} من الأغنية إلى مواضع على الجيتار. اعزفها ببطء مع الإضاءة، ثم ارفع السرعة.`),
+  host.append(card('اللحن على الرقبة', h('p', { class: 'muted', style: { fontSize: '.85rem' } }, `حوّلت ${events.length} ${events.length >= 3 && events.length <= 10 ? 'نوتات' : 'نوتة'} من الأغنية إلى مواضع على الجيتار. اعزفها ببطء مع الإضاءة، ثم ارفع السرعة.`),
     fbh, slider('السرعة', 0.3, 1.2, 0.05, speed, v => { speed = v; }, v => `${Math.round(v * 100)}%`),
     h('div', { class: 'row' }, playBtn, h('button', { class: 'btn', onclick: () => player.stop() }, '■')), tab));
   const fb = new Fretboard(fbh, { from, to });
@@ -302,7 +302,7 @@ export function accompaniment(host, best, bpm0) {
 }
 
 // ===================== مدرّب لحن الأغنية =====================
-// يقسم اللحن إلى جمل: اسمع الأصل ← شاهد على الزند ← اعزف أنت، والتطبيق ينتظرك على كل نوتة
+// يقسم اللحن إلى جمل: اسمع الأصل ← شاهد على الرقبة ← اعزف أنت، والتطبيق ينتظرك على كل نوتة
 // تحويل AudioBuffer أحادي إلى ملف WAV (لتشغيله بسرعة أبطأ مع الحفاظ على الطبقة)
 function wavUrl(buf) {
   const x = buf.getChannelData(0), sr = buf.sampleRate, n = x.length;
@@ -355,7 +355,7 @@ export function songTrainer(host, res, best, audioUrl = null, vocalsBuf = null) 
   const labSeg = h('div', { class: 'seg' }, [['order', 'الترتيب'], ['note', 'النوتة']].map(([k, l]) =>
     h('button', { class: k === labelMode ? 'on' : '', onclick: e => { labelMode = k; labSeg.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.target.classList.add('on'); draw(); } }, l)));
   host.append(card('🎯 تدريب على لحن الأغنية',
-    h('p', { class: 'muted', style: { fontSize: '.85rem' } }, `قسّمت اللحن إلى ${phrases.length === 1 ? 'جملة واحدة' : phrases.length === 2 ? 'جملتين' : phrases.length <= 10 ? phrases.length + ' جمل' : phrases.length + ' جملة'}. لكل جملة: اسمعها، شاهدها على الزند، ثم اعزفها وأنا أنتظرك على كل نوتة.`),
+    h('p', { class: 'muted', style: { fontSize: '.85rem' } }, `قسّمت اللحن إلى ${phrases.length === 1 ? 'جملة واحدة' : phrases.length === 2 ? 'جملتين' : phrases.length <= 10 ? phrases.length + ' جمل' : phrases.length + ' جملة'}. لكل جملة: اسمعها، شاهدها على الرقبة، ثم اعزفها وأنا أنتظرك على كل نوتة.`),
     title, dots, msg, h('div', { class: 'row' }, labSeg), fbh, seq,
     slider('سرعة العرض', 0.3, 1.2, 0.05, speed, v => { speed = v; }, v => `${Math.round(v * 100)}%`),
     h('div', { class: 'row' }, listenOrig, listenVoc, listenGtr), h('div', { class: 'row', style: { marginTop: '8px' } }, yourTurn),

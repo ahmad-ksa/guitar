@@ -39,7 +39,7 @@ function guitar(g, x0, y0, W) {
   // الفتحة والجسر
   g.fillStyle = '#140c06'; g.beginPath(); g.arc(bodyX + W * 0.13, cy, H * 0.17, 0, 7); g.fill();
   g.fillStyle = C.wood2; g.fillRect(bodyX + W * 0.3, cy - H * 0.17, W * 0.025, H * 0.34);
-  // الزند
+  // الرقبة
   g.fillStyle = '#3b2416'; g.fillRect(x0 + W * 0.14, cy - H * 0.09, W * 0.56, H * 0.18);
   g.strokeStyle = '#c9c2b8'; g.lineWidth = 2;
   for (let i = 0; i < 14; i++) { const fx = x0 + W * 0.15 + i * W * 0.038; g.beginPath(); g.moveTo(fx, cy - H * 0.09); g.lineTo(fx, cy + H * 0.09); g.stroke(); }
@@ -58,7 +58,7 @@ const FIGS = {
     const k = guitar(g, 90, H * 0.47, W - 180);
     label(g, 'الرأس', ...k.head, k.head[0] + 40, H * 0.18, seg(p, 0.05, 0.2));
     label(g, 'مفاتيح الدوزان', ...k.pegs, k.pegs[0] + 140, H * 0.08, seg(p, 0.12, 0.27));
-    label(g, 'الزند', ...k.neck, k.neck[0], H * 0.78, seg(p, 0.25, 0.4));
+    label(g, 'الرقبة', ...k.neck, k.neck[0], H * 0.78, seg(p, 0.25, 0.4));
     label(g, 'الفرتات المعدنية', ...k.frets, k.frets[0] + 60, H * 0.13, seg(p, 0.35, 0.5));
     label(g, 'الجسم', ...k.body, k.body[0] - 30, H * 0.85, seg(p, 0.5, 0.65));
     label(g, 'الفتحة', ...k.hole, k.hole[0] - 40, H * 0.14, seg(p, 0.6, 0.75));
@@ -103,7 +103,7 @@ const FIGS = {
     g.strokeStyle = C.skin2; g.lineWidth = 22;
     g.beginPath(); g.moveTo(cx - 70, base - 360); g.quadraticCurveTo(cx + 40, base - 330, cx + 50, base - 250); g.stroke();
     g.beginPath(); g.moveTo(cx - 72, base - 365); g.quadraticCurveTo(cx - 20, base - 470, cx + 80, base - 560); g.stroke();
-    const tips = [['ظهر مستقيم', W * 0.75, H * 0.2], ['الجيتار ملاصق للبطن', W * 0.75, H * 0.42], ['الزند مائل للأعلى قليلاً', W * 0.75, H * 0.64]];
+    const tips = [['ظهر مستقيم', W * 0.75, H * 0.2], ['الجيتار ملاصق للبطن', W * 0.75, H * 0.42], ['الرقبة مائلة للأعلى قليلاً', W * 0.75, H * 0.64]];
     tips.forEach(([t, x, y], i) => {
       const a = seg(p, 0.15 + i * 0.22, 0.32 + i * 0.22); if (a <= 0) return;
       g.save(); g.globalAlpha = a; g.fillStyle = 'rgba(20,16,12,.85)'; roundRect(g, x - 210, y - 38, 420, 76, 18); g.fill();
@@ -132,7 +132,7 @@ const FIGS = {
     if (a > 0) {
       g.save(); g.globalAlpha = a; g.fillStyle = C.line; g.font = FONT(30); g.textAlign = 'center'; g.direction = 'rtl';
       g.fillText('السبابة 1 · الوسطى 2 · البنصر 3 · الخنصر 4', W / 2, H * 0.93);
-      g.fillStyle = C.muted; g.font = FONT(26); g.fillText('الإبهام خلف الزند ولا يأخذ رقماً', W * 0.78, H * 0.45); g.restore();
+      g.fillStyle = C.muted; g.font = FONT(26); g.fillText('الإبهام خلف الرقبة ولا يأخذ رقماً', W * 0.78, H * 0.45); g.restore();
     }
   },
   press(g, W, H, p) {

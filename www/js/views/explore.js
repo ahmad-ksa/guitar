@@ -55,7 +55,7 @@ export function renderExplore(app, params = {}) {
       h('button', { class: st.kind === k ? 'on' : '', onclick: () => { st.kind = k; st.id = k === 'scale' ? 'major' : 'bayati'; st.root = k === 'scale' ? 0 : MAQAMAT.bayati.root; st.box = 0; draw(); } }, l)));
     const sSel = select(scaleOpts(), st.id, v => { st.id = v; if (st.kind === 'maqam') st.root = MAQAMAT[v].root; st.box = 0; draw(); });
     const rSel = select(ROOTS.map(r => ({ value: r.pc, label: rq() && r.pc === st.root ? pcName(r.pc) + ' ½' : pcName(r.pc) })), st.root, v => { st.root = +v; draw(); });
-    const viewSeg = h('div', { class: 'seg' }, [['all', 'الزند كاملاً'], ['pos', 'موضع'], ['box', 'صناديق'], ['string', 'وتر واحد']].map(([k, l]) =>
+    const viewSeg = h('div', { class: 'seg' }, [['all', 'الرقبة كاملةً'], ['pos', 'موضع'], ['box', 'صناديق'], ['string', 'وتر واحد']].map(([k, l]) =>
       h('button', { class: st.view === k ? 'on' : '', onclick: () => { st.view = k; draw(); } }, l)));
     const labSeg = h('div', { class: 'seg' }, [['note', 'النوتة'], ['degree', 'الدرجة'], ['finger', 'الإصبع']].map(([k, l]) =>
       h('button', { class: st.label === k ? 'on' : '', onclick: () => { st.label = k; draw(); } }, l)));
@@ -100,7 +100,7 @@ export function renderExplore(app, params = {}) {
     boardHost.append(h('div', { class: 'row', style: { marginTop: '10px' } }, playBtn, h('button', { class: 'btn', onclick: () => player.stop() }, '■'),
       toggle('درون القرار', st.drone, v => { st.drone = v; }),
     ), slider('السرعة', 40, 200, 1, st.bpm, v => { st.bpm = v; }, v => `${v} BPM`),
-    h('p', { class: 'muted', style: { fontSize: '.8rem', margin: '6px 0 0' } }, 'اضغط على أي نقطة في الزند لسماعها. اسحب الزند يميناً ويساراً لرؤية بقية الفرتات.'));
+    h('p', { class: 'muted', style: { fontSize: '.8rem', margin: '6px 0 0' } }, 'اضغط على أي نقطة في الرقبة لسماعها. اسحب الرقبة يميناً ويساراً لرؤية بقية الفرتات.'));
 
     if (st.view === 'string' && sp) boardHost.append(stringInfo(sp, st.str));
     // معلومات
@@ -155,9 +155,9 @@ export function renderChords(app, params = {}) {
       grid.append(c);
     });
     out.append(card('الأشكال (اضغط للاستماع)', grid));
-    // على الزند
+    // على الرقبة
     const fbh = h('div');
-    out.append(h('div', { class: 'stage' }, h('b', {}, 'نوتات الكورد على الزند كاملاً'), fbh));
+    out.append(h('div', { class: 'stage' }, h('b', {}, 'نوتات الكورد على الرقبة كاملةً'), fbh));
     const fb = new Fretboard(fbh, { from: 0, to: 15 });
     const dots = [];
     for (let s = 0; s < 6; s++) for (let f = 0; f <= 15; f++) {

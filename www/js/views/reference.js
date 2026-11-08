@@ -10,7 +10,7 @@ import { setScreenTimeout, SCREEN_OPTIONS } from '../screen.js';
 
 export function renderReference(app, sub) {
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'المرجع')));
-  const tabs = [['glossary', 'المصطلحات'], ['maqamat', 'جدول المقامات'], ['scales', 'جدول السلالم'], ['circle', 'دائرة الخُمسات'], ['notes', 'نوتات الزند'], ['rhythms', 'الإيقاعات']];
+  const tabs = [['glossary', 'المصطلحات'], ['maqamat', 'جدول المقامات'], ['scales', 'جدول السلالم'], ['circle', 'دائرة الخُمسات'], ['notes', 'نوتات الرقبة'], ['rhythms', 'الإيقاعات']];
   const cur = sub || 'glossary';
   app.append(h('div', { class: 'row', style: { marginBottom: '12px' } }, tabs.map(([k, l]) => h('a', { class: `btn small${k === cur ? ' on' : ''}`, href: `#/reference/${k}` }, l))));
   if (cur === 'glossary') {
@@ -83,7 +83,7 @@ export function renderSettings(app) {
     voiceInfo));
   app.append(card('العرض',
     h('label', { class: 'field' }, 'أسماء النوتات', select([{ value: 'ar', label: 'عربية (دو ري مي)' }, { value: 'latin', label: 'لاتينية (C D E)' }], s.notation, v => { store.setSetting('notation', v); setNotation(v); })),
-    h('label', { class: 'field', style: { marginTop: '8px' } }, 'العرض الافتراضي على الزند', select([{ value: 'note', label: 'اسم النوتة' }, { value: 'degree', label: 'رقم الدرجة' }, { value: 'finger', label: 'رقم الإصبع' }], s.label, v => store.setSetting('label', v))),
+    h('label', { class: 'field', style: { marginTop: '8px' } }, 'العرض الافتراضي على الرقبة', select([{ value: 'note', label: 'اسم النوتة' }, { value: 'degree', label: 'رقم الدرجة' }, { value: 'finger', label: 'رقم الإصبع' }], s.label, v => store.setSetting('label', v))),
     h('div', { style: { marginTop: '10px' } }, toggle('الوضع الفاتح', s.theme === 'light', v => { store.setSetting('theme', v ? 'light' : 'dark'); document.body.classList.toggle('light', v); }))));
   app.append(card('الصوت',
     slider('مستوى الصوت', 0, 1, 0.05, s.volume, v => { store.setSetting('volume', v); setVolume(v); }, v => `${Math.round(v * 100)}%`),

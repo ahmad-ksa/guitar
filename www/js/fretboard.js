@@ -1,4 +1,4 @@
-// رسم زند الجيتار التفاعلي (SVG) ومخططات الكوردات
+// رسم رقبة الجيتار التفاعلي (SVG) ومخططات الكوردات
 import { OPEN_STRINGS, noteName, freqOfQ } from './theory.js';
 import { pluck } from './audio.js';
 
@@ -35,7 +35,7 @@ export class Fretboard {
     const wrap = document.createElement('div');
     wrap.className = 'fb-wrap';
     wrap.dir = 'ltr';
-    const svg = el('svg', { viewBox: `0 0 ${width} ${height}`, class: 'fretboard', role: 'img', 'aria-label': 'زند الجيتار', preserveAspectRatio: 'xMinYMid meet' });
+    const svg = el('svg', { viewBox: `0 0 ${width} ${height}`, class: 'fretboard', role: 'img', 'aria-label': 'رقبة الجيتار', preserveAspectRatio: 'xMinYMid meet' });
     svg.style.width = '100%';
     svg.style.minWidth = `${Math.round(width * 0.72)}px`;
     svg.style.maxWidth = `${Math.round(width * 1.25)}px`;
