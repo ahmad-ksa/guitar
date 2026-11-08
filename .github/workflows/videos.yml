@@ -97,6 +97,7 @@ jobs:
         run: |
           mkdir -p site/videos && cd site/videos
           for i in 1 2 3 4 5; do gh release download videos -p '*.mp4' -p manifest.json --skip-existing && break; echo "retry $i"; sleep $((i*10)); done
+          rm -f guitar-academy-all-lessons.mp4
           ls | wc -l; du -sh .
           cd .. && touch .nojekyll && echo '<meta charset="utf-8">أكاديمية الجيتار' > index.html
       - name: نشر فرع gh-pages
