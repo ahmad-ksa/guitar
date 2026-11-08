@@ -7,6 +7,8 @@ import * as store from '../store.js';
 import * as speech from '../speech.js';
 import { setVolume } from '../audio.js';
 import { setScreenTimeout, SCREEN_OPTIONS } from '../screen.js';
+import * as videos from '../videos.js';
+import { ALL } from '../lessons/index.js';
 
 export function renderReference(app, sub) {
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'المرجع')));
@@ -65,12 +67,44 @@ function circleSvg() {
   return svg;
 }
 
+// تحميل فيديوهات الدروس كلها للمشاهدة بدون إنترنت
+let cancelAll = null;
+function videoCard() {
+  const ids = ALL.map(l => l.id);
+  const info = h('p', { class: 'muted', style: { fontSize: '.85rem', margin: '0 0 8px' } });
+  const bar = h('div', { class: 'bar', style: { display: 'none', margin: '6px 0' } }, h('i', { style: { width: '0%' } }));
+  const go = h('button', { class: 'btn primary small' });
+  const del = h('button', { class: 'btn small' }, '🗑 احذف كل الفيديوهات');
+  const refresh = () => {
+    const n = videos.downloadedCount();
+    info.textContent = `محمّل على جهازك: ${n} من ${ids.length} فيديو. الحجم الكامل حوالي 260 ميغا، ويحتاج اتصال إنترنت (يُفضّل واي فاي).`;
+    go.textContent = cancelAll ? '■ أوقف التحميل' : n >= ids.length ? '✓ كل الفيديوهات محمّلة' : '⬇️ حمّل كل الفيديوهات';
+    go.disabled = !cancelAll && n >= ids.length;
+  };
+  go.addEventListener('click', () => {
+    if (cancelAll) { cancelAll(); cancelAll = null; refresh(); return; }
+    bar.style.display = '';
+    cancelAll = videos.downloadAll(ids, st => {
+      const f = (st.done + (st.frac || 0)) / st.total;
+      bar.firstChild.style.width = `${Math.round(f * 100)}%`;
+      if (st.finished) { cancelAll = null; bar.style.display = 'none'; toast(st.failed ? `انتهى التحميل، وتعذّر ${st.failed} فيديو. حاول مرة ثانية.` : '✓ تم تحميل كل الفيديوهات'); }
+      if (info.isConnected) refresh();
+      if (!st.finished && info.isConnected) info.textContent = `جارٍ التحميل: ${st.done} من ${st.total}${st.failed ? ` (تعذّر ${st.failed})` : ''}…`;
+    });
+    refresh();
+  });
+  del.addEventListener('click', async () => { if (cancelAll) { cancelAll(); cancelAll = null; } await videos.deleteAllVideos(); refresh(); toast('حُذفت الفيديوهات من جهازك'); });
+  refresh();
+  return card('فيديوهات الدروس بدون إنترنت', info, bar, h('div', { class: 'row' }, go, del));
+}
+
 export function renderSettings(app) {
   const s = store.settings();
   app.append(h('div', { class: 'topbar' }, h('h1', {}, 'الإعدادات')));
   app.append(card('مدة بقاء الشاشة مضاءة',
     h('p', { class: 'muted', style: { fontSize: '.85rem', marginTop: 0 } }, 'تبقى الشاشة مضاءة أثناء التمرين حتى تمر هذه المدة دون أن تلمسها. العزف والشرح يُحسبان نشاطاً، فلا تنطفئ الشاشة أثناء تشغيل الدرس.'),
     select(SCREEN_OPTIONS, s.screenMinutes ?? 15, v => { store.setSetting('screenMinutes', +v); setScreenTimeout(+v); toast('تم الحفظ'); }, { style: { width: '100%' } })));
+  if (videos.canDownload()) app.append(videoCard());
   const voiceInfo = h('p', { class: 'muted', style: { fontSize: '.85rem' } });
   const testLine = 'مرحباً بك في أكاديمية الجيتار. هذا اختبار للصوت العربي.';
   setTimeout(() => { if (s.naturalVoice !== false && speech.hasRecorded(testLine)) voiceInfo.textContent = 'الصوت الطبيعي المسجّل مثبت ✓ (يعمل دون إنترنت)'; else speech.hasArabicVoice().then(ok => { voiceInfo.textContent = ok ? 'يُستخدم صوت النطق العربي في الجهاز ✓' : 'لم أجد صوتاً عربياً في الجهاز. ثبّت «اللغة العربية» من إعدادات تحويل النص إلى كلام في أندرويد.'; }); }, 400);
