@@ -1,0 +1,21 @@
+name: فيديو كل الدروس (ملف واحد)
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['فيديوهات الدروس']
+    types: [completed]
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: tools/full_video.sh guitar-academy-all-lessons.mp4
+      - name: رفع الفيديو
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: for i in 1 2 3 4; do gh release upload videos guitar-academy-all-lessons.mp4 --clobber && break; sleep $((i*20)); done
