@@ -64,6 +64,14 @@ jobs:
         run: |
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in android/app/release.jks.enc -out android/app/release.jks -pass env:PASS
 
+      - name: ذاكرة Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper/dists
+            ~/.gradle/caches
+          key: gradle-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle') }}
+          restore-keys: gradle-
       - name: بناء APK موقّع
         working-directory: android
         env:
@@ -71,7 +79,7 @@ jobs:
           VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          for i in 1 2 3 4; do ./gradlew assembleRelease --no-daemon --stacktrace && break; echo "محاولة $i فشلت، إعادة بعد 30 ثانية"; sleep 30; [ $i = 4 ] && exit 1; done
 
       - name: تسمية الملف
         run: cp android/app/build/outputs/apk/release/app-release.apk guitar-academy.apk
