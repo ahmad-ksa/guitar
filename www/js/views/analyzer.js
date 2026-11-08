@@ -8,6 +8,7 @@ import { loadSwiftF0, detect as sfDetect } from '../swiftf0.js';
 import { ALL } from '../lessons/index.js';
 import * as store from '../store.js';
 import { activity } from '../screen.js';
+import { whereToPlayCard } from '../where-to-play.js';
 import { playAlong, melodyOnFretboard, accompaniment, stopPracticeTools, songTrainer } from './practice-tools.js';
 
 let state = { worker: null, stream: null, proc: null, audio: null, url: null, live: null };
@@ -455,6 +456,7 @@ export function renderAnalyzer(app, openSongId = null) {
       h('div', { class: 'row', style: { marginTop: '8px' } },
         h('a', { class: 'btn primary small', href: `#/explore/maqam/${b.id}/${t.pc}` }, '🗺️ اعزفه على الرقبة'),
         ls ? h('a', { class: 'btn small', href: `#/lesson/${ls.id}` }, '📘 درس المقام') : null)));
+    { const wc = whereToPlayCard(b.id, b.q); if (wc) results.append(wc); }
 
     // المرشحون
     results.append(card('المقامات المرشحة', ...res.ranking.map(r => h('div', { style: { margin: '6px 0' } },
