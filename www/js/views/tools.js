@@ -185,7 +185,7 @@ export function renderEar(app) {
         const c = getCtx();
         seq.forEach((q, i) => pluck(freqOfQ(q), c.currentTime + 0.05 + i * 0.42, { dur: 0.9 }));
       };
-      fb.textContent = 'أي مقام تسمع؟ (الجنس الأول صعوداً ونزولاً)';
+      fb.textContent = 'أي مقام تسمع؟ (أول خمس درجات من المقام صعوداً ونزولاً)';
     } else {
       const pcs = [0, 2, 4, 5, 7, 9, 11];
       const pc = pcs[Math.floor(Math.random() * pcs.length)];

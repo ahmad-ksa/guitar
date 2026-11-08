@@ -80,7 +80,7 @@ export default {
           steps: [
             { say: 'اضرب الوتر 6 مفتوحاً مع كل نبضة: ضربة واحدة للأسفل. استمع للعدّ أولاً ثم ادخل.', ex: { type: 'notes', notes: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], label: 'none', sub: 1, bpm: 60, dir: 'up' } },
             { say: 'الآن ضربتان لكل نبضة: تحت ثم فوق. هذا هو التبادل الذي ستستخدمه في كل السلالم.', ex: { type: 'notes', notes: [[0, 0], [0, 0], [0, 0], [0, 0], [1, 0], [1, 0], [1, 0], [1, 0], [2, 0], [2, 0], [2, 0], [2, 0], [3, 0], [3, 0], [3, 0], [3, 0]], label: 'none', sub: 2, bpm: 70, dir: 'up' } },
-            { say: 'مر على كل الأوتار، أربع ضربات لكل وتر، صعوداً ثم نزولاً.', ex: { type: 'notes', notes: [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0].flatMap(s => [[s, 0], [s, 0]]), label: 'none', sub: 2, bpm: 70, dir: 'up' } },
+            { say: 'مر على كل الأوتار، أربع ضربات لكل وتر، صعوداً ثم نزولاً.', ex: { type: 'notes', notes: [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0].flatMap(s => [[s, 0], [s, 0], [s, 0], [s, 0]]), label: 'none', sub: 2, bpm: 70, dir: 'up' } },
           ],
           practice: { ex: { type: 'notes', notes: [0, 1, 2, 3, 4, 5].flatMap(s => [[s, 0], [s, 0], [s, 0], [s, 0]]), label: 'none', sub: 2, dir: 'updown' }, bpm: 60, target: 120 },
           quiz: [{ q: 'من أين تأتي حركة الريشة؟', o: ['الكتف', 'الكوع', 'الرسغ'], a: 2, e: 'الرسغ يعطي سرعة ودقة بأقل تعب.' }],
@@ -158,7 +158,7 @@ export default {
           },
           steps: [
             { say: 'الأصوات الاثنا عشر على الوتر 6 من الفرت 0 إلى 12: الطبيعية وما بينها.', ex: { type: 'string', string: 0, to: 12, naturalOnly: false, label: 'note', sub: 2, bpm: 70, dir: 'up' } },
-            { say: 'هذا يسمى السلم الكروماتيكي: كل المسافات أنصاف تون. لا توجد في الموسيقى الغربية نوتة غير هذه الاثنتي عشرة.' },
+            { say: 'هذا يسمى السلم الكروماتيكي: كل المسافات أنصاف تون. لا توجد في نظام الأنصاف المتساوية الغربي نوتة غير هذه الاثنتي عشرة.' },
           ],
           quiz: [
             { q: 'فا# هي نفسها:', o: ['صول♭', 'مي#', 'فا♭'], a: 0, e: 'فا + نصف تون = صول − نصف تون.' },
@@ -185,7 +185,7 @@ export default {
             { say: 'انقل التمرين للفرت 5 حيث المسافات أصغر وأريح، ثم عد للفرت 1.', ex: { type: 'chromatic', fret: 5, label: 'finger', sub: 2, bpm: 80, dir: 'updown' } },
           ],
           practice: { ex: { type: 'chromatic', fret: 5, label: 'finger', sub: 2, dir: 'updown' }, bpm: 60, target: 120 },
-          quiz: [{ q: 'متى ترفع السرعة؟', o: ['كل يوم مهما حدث', 'بعد 3 محاولات نظيفة متتالية', 'عندما تمل'], a: 1, e: 'قاعدة اللجنة: 3 محاولات نظيفة ثم +5 نبضات.' }],
+          quiz: [{ q: 'متى ترفع السرعة؟', o: ['كل يوم مهما حدث', 'بعد 3 محاولات نظيفة متتالية', 'عندما تمل'], a: 1, e: 'القاعدة: 3 محاولات نظيفة ثم +5 نبضات.' }],
           checks: ['أعزف التمرين على 80 نبضة بضربتين لكل نبضة', 'الأصابع لا ترتفع بعيداً عن الأوتار'],
         },
         {
@@ -300,7 +300,7 @@ export default {
             teacher: 'هذا السلم بأوكتافين كاملين، فهو تمرين ممتاز للمدى.',
           },
           steps: [
-            { say: 'صول الكبير من صول الغليظ على الوتر 6 فرت 3.', ex: { type: 'window', scale: 'major', root: 7, from: 0, to: 4, label: 'finger', sub: 1, bpm: 60, dir: 'updown' } },
+            { say: 'صول الكبير في الوضع المفتوح من مي الغليظ إلى صول الرفيع؛ القرار صول على الوتر 6 فرت 3، والوتر 3 مفتوحاً، والوتر 1 فرت 3.', ex: { type: 'window', scale: 'major', root: 7, from: 0, to: 4, label: 'finger', sub: 1, bpm: 60, dir: 'updown' } },
             { say: 'بالأسماء: لاحظ فا دييز.', ex: { type: 'window', scale: 'major', root: 7, from: 0, to: 4, label: 'note', sub: 2, bpm: 70, dir: 'updown' } },
           ],
           practice: { ex: { type: 'window', scale: 'major', root: 7, from: 0, to: 4, label: 'finger', sub: 2, dir: 'updown' }, bpm: 60, target: 100 },
@@ -366,7 +366,7 @@ export default {
           id: '1-19', title: 'كوردات C وG وD', minutes: 25,
           goal: 'تعزف الكوردات الكبيرة الثلاثة الأشهر وتنتقل بينها.',
           voices: {
-            pro: 'في G استخدم الأصابع 2-1-3، لأنها تسهل الانتقال إلى C لاحقاً.',
+            pro: 'في G ابدأ بالأصابع 2-1-3 فهي الأسهل للمبتدئ، ولاحقاً جرّب 3-2-4 لأنها تسهل الانتقال إلى C: الإصبعان 3 و2 ينتقلان وتراً واحداً معاً.',
             maestro: 'G وC وD هي I وIV وV في صول الكبير: آلاف الأغاني مبنية على هذه الثلاثة فقط.',
             teacher: 'خمس دقائق انتقالات يومياً، لا أكثر، لكن يومياً.',
           },
@@ -406,7 +406,7 @@ export default {
           },
           steps: [
             { say: 'التقدم في صول: صول، ري، مي الصغير، دو.', ex: { type: 'progression', chords: ['G', 'D', 'Em', 'C'], pattern: 'pop', beats: 4, bpm: 75 } },
-            { say: 'نفس الأرقام في دو: دو، صول، لا الصغير، فا. (فا تحتاج باريه، نتعلمه قريباً).', ex: { type: 'progression', chords: ['C', 'G', 'Am', 'Fmaj7'], pattern: 'pop', beats: 4, bpm: 75 } },
+            { say: 'نفس الأرقام في دو: دو، صول، لا الصغير، فا ماجور سفن (بديل سهل لفا؛ فا الكاملة تحتاج باريه نتعلمه قريباً).', ex: { type: 'progression', chords: ['C', 'G', 'Am', 'Fmaj7'], pattern: 'pop', beats: 4, bpm: 75 } },
           ],
           practice: { ex: { type: 'progression', chords: ['G', 'D', 'Em', 'C'], pattern: 'pop', beats: 4 }, bpm: 60, target: 110 },
           quiz: [{ q: 'في دو الكبير، vi هو:', o: ['Am', 'Em', 'Dm'], a: 0, e: 'الدرجة السادسة = لا، وهي صغيرة.' }],
@@ -439,7 +439,7 @@ export default {
           goal: 'ترتجل دقيقة كاملة داخل الصندوق الأول فوق درون لا.',
           voices: {
             pro: 'لا تعزف السلم صعوداً ونزولاً. اختر 3 نوتات فقط وكررها بإيقاعات مختلفة.',
-            maestro: 'كل جملة تنتهي على القرار لا تعطي إحساس «الوصول». جرب الانتهاء على نوتات أخرى ولاحظ الفرق.',
+            maestro: 'كل جملة تنتهي على القرار (لا) تعطي إحساس «الوصول». جرب الانتهاء على نوتات أخرى ولاحظ الفرق.',
             teacher: 'سجل نفسك واستمع. أول تسجيل سيكون سيئاً، وهذا طبيعي تماماً.',
           },
           steps: [
@@ -460,7 +460,7 @@ export default {
           },
           steps: [
             { say: 'دو الكبير البنتاتونيك في نفس منطقة الصندوق الأول، لكن القرار الآن دو.', ex: { type: 'window', scale: 'majorPent', root: 0, from: 5, to: 8, label: 'degree', sub: 2, bpm: 70, dir: 'updown' }, drone: true },
-            { say: 'صول الكبير البنتاتونيك: صندوق مي الصغير على الفرت 0 ثم 3.', ex: { type: 'nps', scale: 'majorPent', root: 7, nps: 2, box: 0, label: 'degree', sub: 2, bpm: 70, dir: 'updown' }, drone: true },
+            { say: 'صول الكبير البنتاتونيك: نفس شكل صندوق مي الصغير على الفرتات 0 إلى 3.', ex: { type: 'window', scale: 'majorPent', root: 7, from: 0, to: 3, label: 'degree', sub: 2, bpm: 70, dir: 'updown' }, drone: true },
           ],
           practice: { ex: { type: 'window', scale: 'majorPent', root: 0, from: 5, to: 8, label: 'finger', sub: 2, dir: 'updown' }, bpm: 60, target: 110, drone: true },
           quiz: [{ q: 'لا الصغير البنتاتونيك ودو الكبير البنتاتونيك:', o: ['نفس النوتات', 'مختلفان تماماً', 'يختلفان في نوتة'], a: 0, e: 'نسبيان: نفس النوتات وقرار مختلف.' }],
@@ -482,7 +482,7 @@ export default {
           steps: [
             { say: 'كورد F: الإصبع 1 يضغط كل الأوتار على الفرت 1، ثم شكل E بالأصابع 2 و3 و4.', ex: { type: 'chord', chord: 'F', prefer: 'E', pattern: 'quarters', beats: 4, bpm: 60 } },
             { say: 'انقل نفس الشكل للفرت 3 فيصبح G، وللفرت 5 فيصبح A. اسم الكورد = النوتة تحت الإصبع 1 على الوتر 6.', ex: { type: 'progression', chords: ['F', 'G', 'A', 'G'], prefer: 'E', pattern: 'quarters', beats: 4, bpm: 60 } },
-            { say: 'الصغير: ارفع الإصبع 2 فيصبح Fm.', ex: { type: 'chord', chord: 'Fm', prefer: 'E', pattern: 'quarters', beats: 4, bpm: 60 } },
+            { say: 'الصغير: ارفع الإصبع 2 فيصبح Fm.', ex: { type: 'chord', chord: 'Fm', prefer: 'E', voicing: { frets: [1, 3, 3, 1, 1, 1], fingers: [1, 3, 4, 1, 1, 1] }, pattern: 'quarters', beats: 4, bpm: 60 } },
           ],
           practice: { ex: { type: 'progression', chords: ['C', 'F', 'G', 'F'], pattern: 'quarters', beats: 4 }, bpm: 50, target: 90 },
           checks: ['أعزف F وكل الأوتار ترن', 'أنقل الشكل لأي كورد كبير وصغير'],
@@ -498,7 +498,7 @@ export default {
           steps: [
             { say: 'كورد سي الصغير على الفرت 2.', ex: { type: 'chord', chord: 'Bm', prefer: 'A', pattern: 'quarters', beats: 4, bpm: 60 } },
             { say: 'كورد سي الكبير: نفس المكان بشكل A الكبير.', ex: { type: 'chord', chord: 'B', prefer: 'A', pattern: 'quarters', beats: 4, bpm: 60 } },
-            { say: 'تقدم: مي الصغير، سي الصغير، دو، ري.', ex: { type: 'progression', chords: ['Em', 'Bm', 'C', 'D'], pattern: 'pop', beats: 4, bpm: 70 } },
+            { say: 'تقدم: مي الصغير، سي الصغير (هنا بشكل E على الفرت 7)، دو، ري.', ex: { type: 'progression', chords: ['Em', 'Bm', 'C', 'D'], pattern: 'pop', beats: 4, bpm: 70 } },
           ],
           practice: { ex: { type: 'progression', chords: ['Em', 'Bm', 'C', 'D'], pattern: 'pop', beats: 4 }, bpm: 55, target: 95 },
           checks: ['أعزف Bm نظيفاً', 'أجد أي كورد في مكانين'],

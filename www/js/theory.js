@@ -26,17 +26,18 @@ export function noteName(q, style = notation) {
   // ربع تون فوق pc = نصف بيمول للنوتة التالية
   const up = (pc + 1) % 12;
   const key = pc; // نصف بيمول يقع بين pc و pc+1
-  if (style === 'ar') return HALF_FLAT_AR[key] || (NOTE_ARABIC[pc] + '+¼');
-  return HALF_FLAT_LATIN[key] || (NOTE_LATIN[pc] + '+¼');
+  if (style === 'ar') return HALF_FLAT_AR[key] || (NOTE_ARABIC[pc] + '½#');
+  return HALF_FLAT_LATIN[key] || (NOTE_LATIN[pc] + '½#');
 }
 
 // تهجئة صحيحة حسب الدرجة: في الصبا صول♭ وليس فا#، وفي الحجازكار ري♭ وليس دو#
 const LETTERS_LATIN = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const LETTERS_AR = ['دو', 'ري', 'مي', 'فا', 'صول', 'لا', 'سي'];
 const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];
-const ACC_LATIN = { '-4': '𝄫', '-3': '♭½', '-2': '♭', '-1': '½♭', 0: '', 1: '+¼', 2: '#', 3: '#¼', 4: '𝄪' };
-export function spelledName(q, rootPc, deg, style = notation) {
-  const rootLetter = LETTERS_LATIN.indexOf(NOTE_LATIN[rootPc][0]);
+const ACC_LATIN = { '-4': '𝄫', '-3': '¾♭', '-2': '♭', '-1': '½♭', 0: '', 1: '½#', 2: '#', 3: '¾#', 4: '𝄪' };
+export function spelledName(q, rootPc, deg, style = notation, rootQuarter = false) {
+  // قرار بربع تون (مثل سيكاه مي½♭) يأخذ حرف النوتة الطبيعية التالية
+  const rootLetter = LETTERS_LATIN.indexOf(((rootQuarter && HALF_FLAT_LATIN[rootPc]) || NOTE_LATIN[rootPc])[0]);
   const li = (rootLetter + deg) % 7;
   const pcq = ((q % 24) + 24) % 24; // ارتفاع داخل الأوكتاف بأرباع
   let diff = pcq - LETTER_PC[li] * 2;
@@ -45,6 +46,20 @@ export function spelledName(q, rootPc, deg, style = notation) {
   if (Math.abs(diff) > 4) return noteName(q, style);
   const acc = style === 'ar' ? ACC_LATIN[diff].replace('𝄫', '♭♭').replace('𝄪', '##') : ACC_LATIN[diff];
   return (style === 'ar' ? LETTERS_AR[li] : LETTERS_LATIN[li]) + acc;
+}
+
+// اسم نوتة في سلم/مقام بحسب رقم الدرجة (يعمل أيضاً مع البنتاتونيك والبلوز)
+export function degreeLetter(scaleId, i, len) {
+  if (len === 7) return i % 7;
+  const d = SCALES[scaleId]?.degrees?.[i];
+  if (!d) return null;
+  const n = parseInt(String(d).replace(/\D/g, ''), 10);
+  return Number.isFinite(n) ? (n - 1) % 7 : null;
+}
+export function scaleNoteName(q, scaleId, rootPc, i, rootQuarter = false, style = notation) {
+  const len = (MAQAMAT[scaleId]?.asc || SCALES[scaleId]?.steps || []).length;
+  const L = degreeLetter(scaleId, i, len);
+  return L == null ? noteName(q, style) : spelledName(q, rootPc, L, style, rootQuarter);
 }
 
 export function pcName(pc, style = notation) {
@@ -253,17 +268,28 @@ const MOVABLE = {
   A: { // القرار على الوتر 5
     maj:  [-9,0,2,2,2,0], min: [-9,0,2,2,1,0], dom7: [-9,0,2,0,2,0], min7: [-9,0,2,0,1,0],
     maj7: [-9,0,2,1,2,0], sus4: [-9,0,2,2,3,0], sus2: [-9,0,2,2,0,0], pow: [-9,0,2,2,-9,-9],
-    m7b5: [-9,0,1,0,1,-9], dim7: [-9,0,1,-1,1,-9], six: [-9,0,2,2,2,2], min6: [-9,0,2,-1,1,0],
+    m7b5: [-9,0,1,0,1,-9], dim7: [-9,0,1,-1,1,-9], six: [-9,0,2,2,2,2], min6: [-9,0,-2,-1,-2,-9],
     dim: [-9,0,1,2,1,-9], aug: [-9,0,3,2,2,-9], dom9: [-9,0,-1,0,0,0], add9: [-9,0,2,4,2,0],
   },
 };
 
-const SHARP_KEYS_MAJOR = [7, 2, 9, 4, 11, 6];
-// اسم الكورد بتهجئة تناسب المفتاح (دييز في مفاتيح الدييز)
+// اسم الكورد بتهجئة تناسب المفتاح: كل كورد يأخذ حرف درجته في السلم
+const KEY_LETTER_MAJOR = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6], KEY_LETTER_MINOR = [0, 0, 1, 2, 2, 3, 3, 4, 4, 5, 6, 6];
+const KEY_MAJOR_OFF = [0, 2, 4, 5, 7, 9, 11], KEY_MINOR_OFF = [0, 2, 3, 5, 7, 8, 10];
 export function chordNameInKey(pc, type, keyPc, mode = 'major') {
-  const relMajor = mode === 'major' ? keyPc : (keyPc + 3) % 12;
-  const names = SHARP_KEYS_MAJOR.includes(relMajor) ? NOTE_LATIN_SHARP : NOTE_LATIN;
-  return names[pc] + (CHORD_TYPES[type]?.sym ?? '');
+  const off = mode === 'major' ? KEY_MAJOR_OFF : KEY_MINOR_OFF;
+  const deg = off.indexOf(((pc - keyPc) % 12 + 12) % 12), sym = CHORD_TYPES[type]?.sym ?? '';
+  if (deg < 0) return NOTE_LATIN[pc] + sym;
+  const L = ((mode === 'major' ? KEY_LETTER_MAJOR : KEY_LETTER_MINOR)[keyPc] + deg) % 7;
+  let d = ((pc - LETTER_PC[L]) % 12 + 12) % 12; if (d > 6) d -= 12;
+  return LETTERS_LATIN[L] + ({ '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##' }[d] ?? '') + sym;
+}
+
+// أسماء نوتات الكورد بالتهجئة الصحيحة (مي الكبير = مي، صول#، سي)
+const IV_LETTER = { 0: 0, 1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 6: 4, 7: 4, 8: 4, 9: 5, 10: 6, 11: 6, 13: 1, 14: 1 };
+export function chordToneNames(pc, type, style = notation) {
+  const iv = CHORD_TYPES[type]?.iv || [0, 4, 7];
+  return iv.map(i => spelledName((48 + pc + i) * 2, pc, type === 'dim7' && i === 9 ? 6 : IV_LETTER[i] ?? 0, style));
 }
 
 export function chordName(pc, type, style = notation) {
@@ -279,10 +305,24 @@ function guessFingers(frets) {
   const played = frets.filter(f => f > 0);
   if (!played.length) return frets.map(() => 0);
   const min = Math.min(...played);
-  const barre = frets.filter(f => f === min).length >= 2 && min > 0;
+  const top = frets.map((f, i) => f >= 0 ? i : -1).filter(i => i >= 0).pop();
+  // باريه فقط إذا كان أعلى وتر مضغوط على أدنى فرت (مثل أشكال E و A)
+  const barre = frets.filter(f => f === min).length >= 2 && min > 0 && frets[top] === min;
   const fingers = frets.map(f => (f <= 0 ? 0 : 0));
-  let next = barre ? 2 : 1;
   const order = frets.map((f, i) => ({ f, i })).filter(o => o.f > 0).sort((a, b) => a.f - b.f || a.i - b.i);
+  // الأصابع حسب البعد عن الباريه: فرت+1 = إصبع 2، فرت+2 = إصبع 3 (والتالي على نفس الفرت = 4)
+  if (barre) {
+    let last = 1, ok = true;
+    for (const o of order) {
+      if (o.f === min) { fingers[o.i] = 1; continue; }
+      const fg = Math.max(o.f - min + 1, last + 1);
+      if (fg > 4) { ok = false; break; }
+      fingers[o.i] = fg; last = fg;
+    }
+    if (ok) return fingers;
+    fingers.fill(0);
+  }
+  let next = barre ? 2 : 1;
   for (const o of order) {
     if (barre && o.f === min) fingers[o.i] = 1;
     else fingers[o.i] = Math.min(4, next++);

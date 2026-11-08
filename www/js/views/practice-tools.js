@@ -60,7 +60,7 @@ function degIndex(id, c) {
   return i;
 }
 function noteLabel(t, cRel, deg) {
-  return spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0) + Math.round(cRel / 50), t.pc, Math.max(0, deg));
+  return spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0) + Math.round(cRel / 50), t.pc, Math.max(0, deg), undefined, t.quarter);
 }
 const tq = q => ({ pc: Math.floor(q / 2) % 12, quarter: q % 2 === 1 });
 

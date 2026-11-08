@@ -147,7 +147,7 @@ export default {
           steps: [
             { say: 'المذهب.', ex: phrase('bayati', 2, 3, 7, [[0, 1], [1, 0.5], [2, 0.5], [3, 1], [3, 1], [4, 0.5], [3, 0.5], [2, 1], [1, 1], [2, 1], [1, 0.5], [0, 0.5], [0, 2]]), rhythm: 'maqsum' },
             { say: 'الكوبليه يصعد للغماز.', ex: phrase('bayati', 2, 3, 7, [[3, 1], [4, 1], [5, 1], [4, 0.5], [3, 0.5], [4, 2], [3, 1], [2, 1], [3, 2]]), rhythm: 'maqsum' },
-            { say: 'المرافقة.', ex: { type: 'progression', chords: ['D5', 'D5', 'C5', 'D5'], prefer: 'A', pattern: 'DD-D-DD-', beats: 4, bpm: 90 } },
+            { say: 'المرافقة.', ex: { type: 'progression', chords: ['D5', 'D5', 'C5', 'D5'], prefer: 'A', pattern: 'DD-DD-D-', beats: 4, bpm: 90 } },
           ],
           checks: ['أحلل أغنية عربية كاملة بالخطوات الثماني'],
         },

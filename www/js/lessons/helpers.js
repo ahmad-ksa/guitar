@@ -1,5 +1,5 @@
 // مولّدات الدروس المتكررة (المودات، الصناديق، المقامات) لتوحيد الأسلوب
-import { MAQAMAT, AJNAS, SCALES, NOTE_ARABIC, stepsToOffsets, noteName, spelledName, OPEN_STRINGS } from '../theory.js';
+import { MAQAMAT, AJNAS, SCALES, NOTE_ARABIC, stepsToOffsets, noteName, spelledName, scaleNoteName, OPEN_STRINGS } from '../theory.js';
 import { windowPattern } from '../exercises.js';
 
 export const AR = NOTE_ARABIC;
@@ -24,7 +24,7 @@ export function noteList(scaleId, root, rootQuarter = false, dir = 'asc') {
   const steps = dir === 'desc' && s.dsc ? s.dsc : (s.asc || s.steps);
   const off = stepsToOffsets(steps);
   const base = (48 + root) * 2 + (rootQuarter ? 1 : 0);
-  return [...off, 24].map((o, i) => (off.length === 7 ? spelledName(base + o, root, i % 7, 'ar') : noteName(base + o, 'ar'))).join('، ');
+  return [...off, 24].map((o, i) => (off.length === 7 ? spelledName(base + o, root, i % 7, 'ar', rootQuarter) : scaleNoteName(base + o, scaleId, root, i % off.length, rootQuarter, 'ar'))).join('، ');
 }
 
 const stepWord = q => ({ 1: 'ربع تون', 2: 'نصف تون', 3: 'ثلاثة أرباع التون', 4: 'تون', 6: 'تون ونصف' }[q] || `${q / 4} تون`);
@@ -33,7 +33,7 @@ export function stepsText(steps) { return steps.map(stepWord).join('، '); }
 // ======== درس صندوق بنتاتونيك ========
 export function pentBoxLesson(n, extra = {}) {
   const tips = [
-    'هذا هو الصندوق الأشهر. القرار تحت إصبعك الأول على الوتر السادس والرابع والأول.',
+    'هذا هو الصندوق الأشهر. القرار تحت إصبعك الأول على الوترين السادس والأول (فرت 5)، وتحت إصبعك الثالث على الوتر الرابع (فرت 7).',
     'يبدأ من الدرجة الثالثة المخفوضة. لاحظ كيف يلتصق بالصندوق الأول من جهة اليمين.',
     'يبدأ من الرابعة. على الوتر الثاني تتحرك النوتات فرتاً واحداً لأن دوزان وتر سي مختلف.',
     'يبدأ من الخامسة، وهو صندوق مريح للبِند على الوترين الثاني والثالث.',
@@ -185,12 +185,12 @@ export function jinsEx(jinsId, root, from, to, rq = false) {
         for (const qq of list) {
           while (ss < 5 && (qq - OPEN_STRINGS[ss] * 2) / 2 > f + 4) ss++;
           const fq = qq - OPEN_STRINGS[ss] * 2;
-          notes.push([ss, Math.floor(fq / 2), fq % 2, { dur: 1 }]);
+          notes.push([ss, Math.floor(fq / 2), fq % 2, { dur: 1, deg: notes.length }]);
         }
         break;
       }
     }
   }
-  const back = [...notes].reverse().slice(1).map(n => [n[0], n[1], n[2], { dur: n === notes[0] ? 2 : 1 }]);
-  return { type: 'notes', notes: [...notes, ...back], label: 'note' };
+  const back = [...notes].reverse().slice(1).map(n => [n[0], n[1], n[2], { ...n[3], dur: n === notes[0] ? 2 : 1 }]);
+  return { type: 'notes', notes: [...notes, ...back], label: 'note', scale: MAQAMAT[jinsId] ? jinsId : undefined, root, rootQuarter: rq };
 }

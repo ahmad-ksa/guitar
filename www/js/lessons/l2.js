@@ -4,9 +4,9 @@ import { pentBoxLesson } from './helpers.js';
 const cagedC = [
   { name: 'شكل C', frets: [-1, 3, 2, 0, 1, 0], fingers: [0, 3, 2, 0, 1, 0], win: [0, 3] },
   { name: 'شكل A', frets: [-1, 3, 5, 5, 5, 3], fingers: [0, 1, 3, 3, 3, 1], win: [2, 5] },
-  { name: 'شكل G', frets: [8, 7, 5, 5, 5, 8], fingers: [4, 3, 1, 1, 1, 4], win: [4, 8] },
+  { name: 'شكل G', frets: [8, 7, 5, 5, 5, 8], fingers: [3, 2, 1, 1, 1, 4], win: [4, 8] },
   { name: 'شكل E', frets: [8, 10, 10, 9, 8, 8], fingers: [1, 3, 4, 2, 1, 1], win: [7, 10] },
-  { name: 'شكل D', frets: [-1, -1, 10, 12, 13, 12], fingers: [0, 0, 1, 3, 4, 2], win: [9, 13] },
+  { name: 'شكل D', frets: [-1, -1, 10, 12, 13, 12], fingers: [0, 0, 1, 2, 4, 3], win: [9, 13] },
 ];
 
 export default {
@@ -202,7 +202,7 @@ export default {
           steps: [
             { say: 'أربيج دو: صعوداً ونزولاً.', ex: { type: 'arp', chord: 'C', order: 'updown', sub: 2, beats: 4, bpm: 80 } },
             { say: 'أربيج لا الصغير.', ex: { type: 'arp', chord: 'Am', order: 'updown', sub: 2, beats: 4, bpm: 80 } },
-            { say: 'تقدم كامل بالأربيج: دو، لا الصغير، فا، صول.', ex: { type: 'arp', chords: ['C', 'Am', 'Fmaj7', 'G'], order: 'up', sub: 2, beats: 4, bpm: 80 } },
+            { say: 'تقدم كامل بالأربيج: دو، لا الصغير، فا ماجور سفن، صول.', ex: { type: 'arp', chords: ['C', 'Am', 'Fmaj7', 'G'], order: 'up', sub: 2, beats: 4, bpm: 80 } },
           ],
           practice: { ex: { type: 'arp', chords: ['C', 'Am', 'Fmaj7', 'G'], order: 'up', sub: 2, beats: 4 }, bpm: 60, target: 110 },
           checks: ['أعزف أربيج أي كورد مفتوح'],

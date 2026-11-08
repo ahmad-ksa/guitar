@@ -1,5 +1,5 @@
 // مولّد التمارين: يحوّل وصفاً مختصراً إلى نوتات على الرقبة وتسلسل زمني للعزف
-import { OPEN_STRINGS, getScale, scaleOffsets, noteName, spelledName, chordVoicings, degreeLabel, parseChord } from './theory.js';
+import { OPEN_STRINGS, getScale, scaleOffsets, noteName, spelledName, scaleNoteName, MAQAMAT, chordVoicings, degreeLabel, parseChord } from './theory.js';
 
 const openQ = s => OPEN_STRINGS[s] * 2;
 
@@ -31,6 +31,19 @@ export function stringPattern(scaleId, rootPc, s, { rootQuarter = false, maxFret
   const lo = up[0].q, hi = up[up.length - 1].q;
   const down = onStr('desc').filter(p => p.q >= lo && p.q <= hi).reverse();
   return { up, down, top: Math.max(...up.map(p => p.f)), fits: up.length === len + 1 && hi - openQ(s) <= maxFret * 2 + 1 };
+}
+
+// صناديق البلوز = صناديق البنتاتونيك الخمسة + نوتة البلوز (لا شكل 3 نوتات لكل وتر)
+export const BLUES_BASE = { blues: 'minorPent', majorBlues: 'majorPent' };
+export function boxPattern(scaleId, rootPc, box, { rootQuarter = false } = {}) {
+  const base = BLUES_BASE[scaleId];
+  if (base) {
+    const ps = npsPattern(base, rootPc, { nps: 2, box });
+    const fs = ps.map(p => p.f);
+    return windowPattern(scaleId, rootPc, Math.min(...fs), Math.max(...fs));
+  }
+  const n = scaleOffsets(scaleId).length;
+  return npsPattern(scaleId, rootPc, { nps: n === 5 ? 2 : 3, box, rootQuarter });
 }
 
 // نمط "عدد ثابت من النوتات لكل وتر" — يعطي صناديق البنتاتونيك و3NPS
@@ -122,7 +135,7 @@ export function labelFor(p, mode, scaleId, rootPc) {
   if (mode === 'degree') return p.deg != null ? degreeLabel(scaleId, p.deg) : '';
   if (mode === 'finger') return p.finger != null ? (p.finger || 'م') : '';
   if (mode === 'none') return '';
-  if (p.deg != null && rootPc != null && scaleId && scaleOffsets(scaleId).length === 7) return spelledName(p.q, rootPc, p.deg);
+  if (p.deg != null && rootPc != null && scaleId) return scaleNoteName(p.q, scaleId, rootPc, p.deg, !!(MAQAMAT[scaleId]?.rootQuarter || p.rootQuarter));
   return noteName(p.q);
 }
 

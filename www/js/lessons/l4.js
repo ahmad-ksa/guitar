@@ -2,7 +2,7 @@
 import { maqamLesson, jinsEx, phrase } from './helpers.js';
 import { AJNAS } from '../theory.js';
 
-const D = [3, 7], C = [2, 6], E = [5, 9], F = [0, 4], Bb = [0, 4];
+const D = [3, 7], C = [2, 6], E = [5, 9], F = [6, 10], Bb = [0, 4];
 const jinsOrder = ['ajam', 'nahawand', 'kurd', 'hijaz', 'nikriz', 'rast', 'bayati', 'saba', 'sikah'];
 const jinsRoot = { ajam: 0, nahawand: 0, kurd: 2, hijaz: 2, nikriz: 0, rast: 0, bayati: 2, saba: 2, sikah: 3 };
 
@@ -10,7 +10,7 @@ export default {
   n: 4,
   title: 'المقامات العربية',
   months: 'الأشهر 10–12',
-  desc: 'الأجناس، ربع التون على الجيتار، 17 مقاماً بسيرها، الإيقاعات العربية، التقاسيم، والتحويل المقامي.',
+  desc: 'الأجناس، ربع التون على الجيتار، 18 مقاماً بسيرها، الإيقاعات العربية، التقاسيم، والتحويل المقامي.',
   units: [
     {
       title: 'أساس المقام',
@@ -83,7 +83,7 @@ export default {
           steps: [
             { say: 'العزف الأفقي يعني أن تعزف المقام كله على وتر واحد، تتحرك على طول الرقبة بدل أن تنتقل بين الأوتار. نبدأ بمقام الكرد من مي على الوتر الأول المطلق: صفر، واحد، ثلاثة، خمسة، سبعة، ثمانية، عشرة، اثنا عشر.', ex: { type: 'maqamString', scale: 'kurd', root: 4, string: 5, rootQuarter: false, label: 'note', fingers: false, bpm: 70 } },
             { say: 'لاحظ أن المسافة بين النوتات تراها بعينك: فرت واحد يعني نصف تون، وفرتان يعني تون. الآن مقام الحجاز من مي: بين الفرت الأول والرابع ثلاثة فرتات، وهذا هو التون والنصف الذي يعطي الحجاز طابعه.', ex: { type: 'maqamString', scale: 'hijaz', root: 4, string: 5, rootQuarter: false, label: 'note', fingers: false, bpm: 70 } },
-            { say: 'مقام الراست من صول على الوتر الأول يبدأ من الفرت الثالث. السيكاه هي الفرت السادس مع ربع تون، أي اضغط السادس وادفع الوتر قليلاً. ونزولاً يصبح الفرت الثالث عشر بلا ربع.', ex: { type: 'maqamString', scale: 'rast', root: 7, string: 5, rootQuarter: false, label: 'note', fingers: false, bpm: 70 }, drone: true },
+            { say: 'مقام الراست من صول على الوتر الأول يبدأ من الفرت الثالث. الدرجة الثالثة (سي½♭) هي الفرت السادس مع ربع تون، أي اضغط السادس وادفع الوتر قليلاً. ونزولاً يصبح الفرت الثالث عشر بلا ربع.', ex: { type: 'maqamString', scale: 'rast', root: 7, string: 5, rootQuarter: false, label: 'note', fingers: false, bpm: 70 }, drone: true },
             { say: 'مقام البياتي من لا يبدأ من الفرت الخامس: بعده الفرت السادس مع ربع تون، ثم الثامن. المسافتان الأوليان كل واحدة فرت ونصف، أي ثلاثة أرباع التون.', ex: { type: 'maqamString', scale: 'bayati', root: 9, string: 5, rootQuarter: false, label: 'note', fingers: false, bpm: 70 }, drone: true },
             { say: 'جرّب الآن البياتي من ري على الوتر الثاني، يبدأ من الفرت الثالث. في المستكشف تقدر تختار أي مقام وأي وتر من زر «وتر واحد».', ex: { type: 'maqamString', scale: 'bayati', root: 2, string: 4, rootQuarter: false, label: 'note', fingers: false, bpm: 70 }, drone: true },
           ],
@@ -260,7 +260,7 @@ export default {
             teacher: 'التحويل المقامي هو ما يجعل الطرب «رحلة». ابدأ بالتحويلات القريبة.',
           },
           steps: [
-            { say: 'بياتي ثم صبا: لاحظ تغيير نوتة صول.', ex: { type: 'notes', notes: [...phrase('bayati', 2, 3, 7, [[0, 1], [1, 1], [2, 1], [3, 2], [2, 1], [1, 1], [0, 1]]).notes, ...phrase('saba', 2, 3, 7, [[0, 1], [1, 1], [2, 1], [3, 2], [2, 1], [1, 1], [0, 2]]).notes], label: 'note' }, drone: true },
+            { say: 'بياتي ثم صبا: لاحظ تغيير نوتة صول.', ex: { type: 'notes', scale: 'saba', root: 2, notes: [...phrase('bayati', 2, 3, 7, [[0, 1], [1, 1], [2, 1], [3, 2], [2, 1], [1, 1], [0, 1]]).notes, ...phrase('saba', 2, 3, 7, [[0, 1], [1, 1], [2, 1], [3, 2], [2, 1], [1, 1], [0, 2]]).notes], label: 'note' }, drone: true },
             { say: 'راست ثم سوزناك: الجنس الثاني يتحول إلى حجاز.', ex: { type: 'notes', notes: [...phrase('rast', 0, 2, 6, [[4, 1], [5, 1], [6, 1], [7, 2], [6, 1], [5, 1], [4, 1]]).notes, ...phrase('suznak', 0, 2, 6, [[4, 1], [5, 1], [6, 1], [7, 2], [6, 1], [5, 1], [4, 2]]).notes], label: 'note' }, drone: true },
           ],
           checks: ['أنتقل بين البياتي والصبا', 'أنتقل بين الراست والسوزناك'],

@@ -108,13 +108,13 @@ export default {
           id: '3-14', title: 'الفريجيان دومينانت', minutes: 25,
           goal: 'تعزف الفريجيان دومينانت وتربطه بمقام الحجاز وبالصغير الهارموني.',
           voices: {
-            maestro: 'هو المود الخامس من الصغير الهارموني، ويطابق مقام الحجاز تماماً في الجيتار الغربي.',
+            maestro: 'هو المود الخامس من الصغير الهارموني، ويقارب مقام الحجاز (بجنس نهاوند على الرابعة) في الجيتار الغربي.',
             pro: 'أشهر سلم في الميتال الشرقي والفلامنكو. جرب البِند الصغير على الدرجة الثانية.',
             teacher: 'اعزفه فوق كورد E الكبير: الصوت الشرقي يظهر فوراً.',
           },
           steps: [
             { say: 'مي فريجيان دومينانت: مي، فا، صول دييز، لا، سي، دو، ري.', ex: { type: 'window', scale: 'phrygianDom', root: 4, from: 0, to: 4, label: 'note', sub: 2, bpm: 80, dir: 'updown' }, drone: true },
-            { say: 'التقدم الأندلسي: لا الصغير، صول، فا، مي.', ex: { type: 'progression', chords: ['Am', 'G', 'Fmaj7', 'E'], pattern: 'basic', beats: 4, bpm: 90 } },
+            { say: 'التقدم الأندلسي: لا الصغير، صول، فا (نعزفها هنا فا ماجور سفن الأسهل)، مي.', ex: { type: 'progression', chords: ['Am', 'G', 'Fmaj7', 'E'], pattern: 'basic', beats: 4, bpm: 90 } },
           ],
           practice: { ex: { type: 'window', scale: 'phrygianDom', root: 4, from: 0, to: 4, label: 'finger', sub: 2, dir: 'updown' }, bpm: 60, target: 120, drone: true },
           quiz: [{ q: 'الفريجيان دومينانت يطابق مقام:', o: ['الحجاز', 'البياتي', 'العجم'], a: 0, e: '1 b2 3 4 5 b6 b7 = حجاز.' }],
@@ -215,7 +215,7 @@ export default {
           },
           steps: [
             { say: 'من دو إلى صول: دو، لا الصغير، ري سفن، صول.', ex: { type: 'progression', chords: ['C', 'Am', 'D7', 'G'], pattern: 'basic', beats: 4, bpm: 80 } },
-            { say: 'رفع نصف تون: صول، ري، مي الصغير، دو، ثم إي بيمول سفن، ولا بيمول.', ex: { type: 'progression', chords: ['G', 'D', 'Em', 'C', 'Eb7', 'Ab'], pattern: 'pop', beats: 4, bpm: 80 } },
+            { say: 'رفع نصف تون: صول، ري، مي الصغير، دو، ثم مي بيمول سفن، ولا بيمول.', ex: { type: 'progression', chords: ['G', 'D', 'Em', 'C', 'Eb7', 'Ab'], pattern: 'pop', beats: 4, bpm: 80 } },
           ],
           checks: ['أحول بين دو وصول وفا'],
         },
@@ -234,7 +234,7 @@ export default {
           },
           steps: [
             { say: 'نوتة واحدة متكررة: أربع ضربات لكل نبضة.', ex: { type: 'notes', notes: Array(16).fill([4, 8]), label: 'none', sub: 4, bpm: 80 } },
-            { say: 'الآن على وترين: أصعب لحظة هي الانتقال بين الأوتار.', ex: { type: 'nps', scale: 'major', root: 7, nps: 3, box: 0, label: 'finger', sub: 4, bpm: 80, dir: 'updown' } },
+            { say: 'الآن على كل الأوتار: أصعب لحظة هي الانتقال بين الأوتار.', ex: { type: 'nps', scale: 'major', root: 7, nps: 3, box: 0, label: 'finger', sub: 4, bpm: 80, dir: 'updown' } },
           ],
           practice: { ex: { type: 'nps', scale: 'major', root: 7, nps: 3, box: 0, label: 'finger', sub: 4, dir: 'updown' }, bpm: 60, target: 120 },
           checks: ['16th notes نظيفة على 100 نبضة'],
@@ -331,7 +331,7 @@ export default {
           },
           steps: [
             { say: 'ثالثة كل كورد في التقدم: لا الصغير (دو)، فا (لا)، دو (مي)، صول (سي).', ex: { type: 'notes', notes: [[4, 1, 0, { dur: 4 }], [3, 2, 0, { dur: 4 }], [5, 0, 0, { dur: 4 }], [4, 0, 0, { dur: 4 }]], label: 'note', bpm: 80 } },
-            { say: 'استمع للكوردات معها.', ex: { type: 'progression', chords: ['Am', 'Fmaj7', 'C', 'G'], pattern: 'ballad', beats: 4, bpm: 80 } },
+            { say: 'استمع للكوردات معها: لا الصغير، فا ماجور سفن، دو، صول.', ex: { type: 'progression', chords: ['Am', 'Fmaj7', 'C', 'G'], pattern: 'ballad', beats: 4, bpm: 80 } },
           ],
           practice: { ex: { type: 'progression', chords: ['Am', 'Fmaj7', 'C', 'G'], pattern: 'ballad', beats: 4 }, bpm: 70, target: 100, free: true },
           checks: ['أرتجل دقيقتين وأهبط على نوتات الكوردات'],

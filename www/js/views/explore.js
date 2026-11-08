@@ -1,8 +1,8 @@
 // مستكشف السلالم والمقامات + مكتبة الكوردات
 import { h, select, slider, toggle, card } from '../ui.js';
 import { Fretboard, chordDiagram, voicingFreqs } from '../fretboard.js';
-import { allPositions, windowPattern, npsPattern, labelFor, assignFingers, stringPattern } from '../exercises.js';
-import { SCALES, MAQAMAT, MAQAM_CHARACTER, ROOTS, getScale, scaleOffsets, CHORD_TYPES, chordVoicings, chordName, chordNameInKey, chordNotes, pcName, noteName, rootQ, diatonicChords, spelledName } from '../theory.js';
+import { allPositions, windowPattern, npsPattern, labelFor, assignFingers, stringPattern, boxPattern, BLUES_BASE } from '../exercises.js';
+import { SCALES, MAQAMAT, MAQAM_CHARACTER, ROOTS, getScale, scaleOffsets, CHORD_TYPES, chordVoicings, chordName, chordNameInKey, chordNotes, pcName, noteName, rootQ, diatonicChords, spelledName, scaleNoteName, chordToneNames } from '../theory.js';
 import { Player } from '../player.js';
 import { strum, pluck, droneStart, droneStop } from '../audio.js';
 import { freqOfQ } from '../theory.js';
@@ -42,7 +42,7 @@ export function renderExplore(app, params = {}) {
       const m = new Map(); [...sp.up, ...sp.down].forEach(p => m.set(p.q, p));
       return [...m.values()].sort((a, b) => a.q - b.q);
     }
-    if (st.view === 'box') return npsPattern(st.id, st.root, { nps: n === 5 ? 2 : 3, box: st.box, rootQuarter: rq() });
+    if (st.view === 'box') return boxPattern(st.id, st.root, st.box, { rootQuarter: rq() });
     // موضع: نافذة حول القرار على الوتر 5 أو 6
     const r6 = ((st.root - 4) % 12 + 12) % 12;
     const from = Math.max(0, (r6 === 0 ? 0 : r6) - 1);
@@ -62,7 +62,7 @@ export function renderExplore(app, params = {}) {
     controls.append(h('div', { class: 'row' }, kindSeg), h('div', { class: 'row', style: { marginTop: '8px' } }, sSel, h('span', { class: 'muted' }, 'من'), rSel),
       h('div', { class: 'row', style: { marginTop: '8px' } }, viewSeg, labSeg));
     if (st.view === 'box') {
-      const n = scaleOffsets(st.id).length;
+      const n = BLUES_BASE[st.id] ? 5 : scaleOffsets(st.id).length;
       controls.append(h('div', { class: 'row', style: { marginTop: '8px' } }, h('span', { class: 'muted' }, 'الصندوق:'),
         h('div', { class: 'seg' }, [...Array(n)].map((_, i) => h('button', { class: st.box === i ? 'on' : '', onclick: () => { st.box = i; draw(); } }, i + 1)))));
     }
@@ -108,7 +108,7 @@ export function renderExplore(app, params = {}) {
     const sc = getScale(st.id);
     const off = scaleOffsets(st.id);
     const base = (48 + st.root) * 2 + (rq() ? 1 : 0);
-    const names = off.map((o, i) => (off.length === 7 ? spelledName(base + o, st.root, i) : noteName(base + o)));
+    const names = off.map((o, i) => scaleNoteName(base + o, st.id, st.root, i, rq()));
     info.append(h('h3', {}, `${sc.name} من ${names[0]}`));
     if (sc.desc) info.append(h('p', {}, sc.desc));
     const ch = MAQAM_CHARACTER[st.id];
@@ -143,7 +143,7 @@ export function renderChords(app, params = {}) {
       select(ROOTS.map(r => ({ value: r.pc, label: `${r.ar} (\u2066${r.latin}\u2069)` })), st.root, v => { st.root = +v; draw(); }),
       select(Object.entries(CHORD_TYPES).map(([k, v]) => ({ value: k, label: `${v.name} ${v.sym ? '(\u2066' + v.sym + '\u2069)' : ''}` })), st.type, v => { st.type = v; draw(); })));
     const notes = chordNotes(st.root, st.type);
-    ctl.append(h('p', { style: { margin: '8px 0 0' } }, h('b', { class: 'ltr' }, chordName(st.root, st.type, 'latin')), ' = ', notes.map(n => pcName(n)).join('، '),
+    ctl.append(h('p', { style: { margin: '8px 0 0' } }, h('b', { class: 'ltr' }, chordName(st.root, st.type, 'latin')), ' = ', chordToneNames(st.root, st.type).join('، '),
       h('span', { class: 'muted' }, `  (الفواصل: ${CHORD_TYPES[st.type].iv.join('، ')} نصف تون)`)));
     out.innerHTML = '';
     const vs = chordVoicings(st.root, st.type);
@@ -163,7 +163,7 @@ export function renderChords(app, params = {}) {
     for (let s = 0; s < 6; s++) for (let f = 0; f <= 15; f++) {
       const pc = ([40, 45, 50, 55, 59, 64][s] + f) % 12;
       const idx = notes.indexOf(pc);
-      if (idx >= 0) dots.push({ s, f, q: ([40, 45, 50, 55, 59, 64][s] + f) * 2, kind: idx === 0 ? 'root' : 'chord', label: ['1', '3', '5', '7', '9'][idx] && CHORD_TYPES[st.type].iv[idx] != null ? ivLabel(CHORD_TYPES[st.type].iv[idx]) : '' });
+      if (idx >= 0) dots.push({ s, f, q: ([40, 45, 50, 55, 59, 64][s] + f) * 2, kind: idx === 0 ? 'root' : 'chord', label: ['1', '3', '5', '7', '9'][idx] && CHORD_TYPES[st.type].iv[idx] != null ? (st.type === 'dim7' && CHORD_TYPES[st.type].iv[idx] === 9 ? 'bb7' : ivLabel(CHORD_TYPES[st.type].iv[idx])) : '' });
     }
     fb.setDots(dots);
   }

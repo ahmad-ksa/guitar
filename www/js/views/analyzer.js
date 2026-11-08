@@ -100,7 +100,7 @@ function intervalWord(c, deg) {
     : { '-200': 'ناقصة', '-100': 'صغيرة', '-50': 'نصف بيمول', 0: 'كبيرة', 100: 'زائدة' }[d];
   return `${ORD[deg]} ${q || ''}`.trim();
 }
-export function tonicName(q) { const t = tonicFromQ(q); return spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0), t.pc, 0); }
+export function tonicName(q) { const t = tonicFromQ(q); return spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0), t.pc, 0, undefined, t.quarter); }
 function lessonFor(id) { return ALL.find(l => l.title === MAQAMAT[id].name); }
 
 export function renderAnalyzer(app, openSongId = null) {
@@ -465,7 +465,7 @@ export function renderAnalyzer(app, openSongId = null) {
 
     // الدليل
     const rows = res.evidence.map(e => {
-      const name = e.measured != null ? spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0) + Math.round(e.measured / 50), t.pc, e.deg) : '—';
+      const name = e.measured != null ? spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0) + Math.round(e.measured / 50), t.pc, e.deg, undefined, t.quarter) : '—';
       const diff = e.measured != null ? e.measured - e.expected : null;
       const ok = diff != null && Math.abs(diff) <= 25 && e.strength > 0.004;
       return h('tr', {},
@@ -744,7 +744,7 @@ async function startLive(panel, status, alive = () => true) {
           g.lineWidth = i === 0 ? 1.5 : 1;
           g.beginPath(); g.moveTo(0, y(c)); g.lineTo(W, y(c)); g.stroke();
           g.fillStyle = 'rgba(200,180,150,.7)';
-          g.fillText(spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0) + o / 50, t.pc, i), 4, y(c) - 2);
+          g.fillText(spelledName((48 + t.pc) * 2 + (t.quarter ? 1 : 0) + o / 50, t.pc, i, undefined, t.quarter), 4, y(c) - 2);
         });
       }
     }
