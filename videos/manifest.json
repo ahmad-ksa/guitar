@@ -1,0 +1,592 @@
+{
+ "1-03": {
+  "hash": "2103358c3b19902e",
+  "duration": 94.7,
+  "size": 1971386
+ },
+ "1-11": {
+  "hash": "ba3d9576c6e7c11e",
+  "duration": 87.4,
+  "size": 1690800
+ },
+ "1-19": {
+  "hash": "2239d226417b3a9a",
+  "duration": 103.9,
+  "size": 2196573
+ },
+ "2-01": {
+  "hash": "29da97de76b58479",
+  "duration": 131.3,
+  "size": 2679614
+ },
+ "2-09": {
+  "hash": "e6202690919096bc",
+  "duration": 103.9,
+  "size": 2004552
+ },
+ "2-17": {
+  "hash": "4c26c7c2dbbc851a",
+  "duration": 93.3,
+  "size": 1862261
+ },
+ "3-02": {
+  "hash": "f3da7e7341683c7f",
+  "duration": 127.1,
+  "size": 2655954
+ },
+ "3-10": {
+  "hash": "7ad52f9c373c184e",
+  "duration": 94.7,
+  "size": 2086764
+ },
+ "3-18": {
+  "hash": "acafefb33ac92902",
+  "duration": 88.7,
+  "size": 1901354
+ },
+ "3-26": {
+  "hash": "8bde36b1dfca2f35",
+  "duration": 70.5,
+  "size": 1431881
+ },
+ "4-05": {
+  "hash": "f567bbb2e4691ab9",
+  "duration": 167.1,
+  "size": 3307272
+ },
+ "4-13": {
+  "hash": "d8b330fc07ecb4f1",
+  "duration": 186.0,
+  "size": 3804813
+ },
+ "4-21": {
+  "hash": "036ec343508ef72b",
+  "duration": 81.0,
+  "size": 1633133
+ },
+ "5-01": {
+  "hash": "6673a7ab90f2daff",
+  "duration": 101.2,
+  "size": 2048416
+ },
+ "5-09": {
+  "hash": "954f8106ff196304",
+  "duration": 92.2,
+  "size": 2029426
+ },
+ "1-04": {
+  "hash": "9bb0c1039518a3f1",
+  "duration": 120.8,
+  "size": 2368410
+ },
+ "1-12": {
+  "hash": "16b9d66db72fe2ca",
+  "duration": 107.7,
+  "size": 2148957
+ },
+ "1-20": {
+  "hash": "6dbe0086546285ab",
+  "duration": 89.6,
+  "size": 1875051
+ },
+ "2-02": {
+  "hash": "1e3664abcc23c226",
+  "duration": 121.4,
+  "size": 2476773
+ },
+ "2-10": {
+  "hash": "6c4a3906df4bdf8e",
+  "duration": 112.4,
+  "size": 2486018
+ },
+ "2-18": {
+  "hash": "930ebd7b61c5c0d2",
+  "duration": 88.6,
+  "size": 1704811
+ },
+ "3-03": {
+  "hash": "203436c46a29608a",
+  "duration": 134.1,
+  "size": 2753856
+ },
+ "3-11": {
+  "hash": "1e637c86fe73c8e2",
+  "duration": 73.6,
+  "size": 1528804
+ },
+ "3-19": {
+  "hash": "5cc88beb30b8423d",
+  "duration": 83.8,
+  "size": 1750119
+ },
+ "3-27": {
+  "hash": "b9c19135ea5ff417",
+  "duration": 84.4,
+  "size": 1805182
+ },
+ "4-06": {
+  "hash": "b8bc0a3c2c1f2f47",
+  "duration": 152.6,
+  "size": 3031450
+ },
+ "4-14": {
+  "hash": "ce7817ca465076c5",
+  "duration": 189.6,
+  "size": 3818193
+ },
+ "4-22": {
+  "hash": "e45962134320f74c",
+  "duration": 84.3,
+  "size": 1554883
+ },
+ "5-02": {
+  "hash": "fb4bd1f622ae0688",
+  "duration": 74.7,
+  "size": 1486518
+ },
+ "5-10": {
+  "hash": "0262b253ad8a00d3",
+  "duration": 56.1,
+  "size": 1106521
+ },
+ "1-02": {
+  "hash": "646627f82df55e1d",
+  "duration": 110.8,
+  "size": 2277573
+ },
+ "1-10": {
+  "hash": "41e76295e1dcf852",
+  "duration": 100.9,
+  "size": 2081951
+ },
+ "1-18": {
+  "hash": "ca972e31abe247cf",
+  "duration": 94.8,
+  "size": 1922599
+ },
+ "1-26": {
+  "hash": "b5f95a2b53349e85",
+  "duration": 89.0,
+  "size": 1831150
+ },
+ "2-08": {
+  "hash": "9aaf3a7d5c864b7f",
+  "duration": 143.3,
+  "size": 2994759
+ },
+ "2-16": {
+  "hash": "99841048d506db61",
+  "duration": 93.1,
+  "size": 1759127
+ },
+ "3-01": {
+  "hash": "69f58857288f159a",
+  "duration": 107.1,
+  "size": 2268771
+ },
+ "3-09": {
+  "hash": "32d377c64cfdb77d",
+  "duration": 93.2,
+  "size": 1993985
+ },
+ "3-17": {
+  "hash": "cb76fe26a78954a5",
+  "duration": 85.0,
+  "size": 1768338
+ },
+ "3-25": {
+  "hash": "6271698d798e07a9",
+  "duration": 85.9,
+  "size": 1729068
+ },
+ "4-04": {
+  "hash": "9b5727c54246d1b1",
+  "duration": 162.1,
+  "size": 3242154
+ },
+ "4-12": {
+  "hash": "b7284511b8ef0dbc",
+  "duration": 204.2,
+  "size": 4130115
+ },
+ "4-20": {
+  "hash": "e39648617ceb7b9f",
+  "duration": 185.9,
+  "size": 3747100
+ },
+ "4-28": {
+  "hash": "f4ea5259e89b6222",
+  "duration": 93.3,
+  "size": 2019605
+ },
+ "5-08": {
+  "hash": "c6cb0ebd56158ca4",
+  "duration": 98.4,
+  "size": 2050153
+ },
+ "1-05": {
+  "hash": "c29074fdeb1b2bd5",
+  "duration": 117.7,
+  "size": 2407226
+ },
+ "1-13": {
+  "hash": "fa38083abd25f57b",
+  "duration": 133.2,
+  "size": 2649157
+ },
+ "1-21": {
+  "hash": "d5f6bb0adcd89097",
+  "duration": 98.2,
+  "size": 2032466
+ },
+ "2-03": {
+  "hash": "031ac611c7a3ac03",
+  "duration": 122.6,
+  "size": 2489454
+ },
+ "2-11": {
+  "hash": "35693910c7fe5d66",
+  "duration": 86.9,
+  "size": 1644450
+ },
+ "2-19": {
+  "hash": "ce2b546730f1aa1b",
+  "duration": 62.8,
+  "size": 1129086
+ },
+ "3-04": {
+  "hash": "f909547c3e0b6867",
+  "duration": 127.7,
+  "size": 2643049
+ },
+ "3-12": {
+  "hash": "b4577d812910ea3c",
+  "duration": 55.6,
+  "size": 1110991
+ },
+ "3-20": {
+  "hash": "37adc037901ff77c",
+  "duration": 96.8,
+  "size": 2004186
+ },
+ "3-28": {
+  "hash": "36630a8297e20098",
+  "duration": 89.7,
+  "size": 1740009
+ },
+ "4-07": {
+  "hash": "09c5165f8d32d568",
+  "duration": 169.6,
+  "size": 3375742
+ },
+ "4-15": {
+  "hash": "160dbd0583363c93",
+  "duration": 197.7,
+  "size": 4071440
+ },
+ "4-23": {
+  "hash": "cdb02143a6def761",
+  "duration": 87.5,
+  "size": 1549716
+ },
+ "5-03": {
+  "hash": "24b657780387b3bd",
+  "duration": 129.5,
+  "size": 2563081
+ },
+ "1-01": {
+  "hash": "d1879bb0433b1eff",
+  "duration": 114.6,
+  "size": 2417876
+ },
+ "1-09": {
+  "hash": "44475f706c51a47f",
+  "duration": 130.8,
+  "size": 2742165
+ },
+ "1-17": {
+  "hash": "793b1d165c9c2a8f",
+  "duration": 71.8,
+  "size": 1414496
+ },
+ "1-25": {
+  "hash": "dee620c9b417ab36",
+  "duration": 105.1,
+  "size": 2140034
+ },
+ "2-07": {
+  "hash": "32b5c58304df50df",
+  "duration": 117.2,
+  "size": 2476166
+ },
+ "2-15": {
+  "hash": "66f18c8c4b4d2c0e",
+  "duration": 82.6,
+  "size": 1641577
+ },
+ "2-23": {
+  "hash": "f189a462e8868e7e",
+  "duration": 75.1,
+  "size": 1513616
+ },
+ "3-08": {
+  "hash": "663a4e08cc980102",
+  "duration": 127.0,
+  "size": 2630852
+ },
+ "3-16": {
+  "hash": "f982b2239525a1e7",
+  "duration": 56.3,
+  "size": 1106709
+ },
+ "3-24": {
+  "hash": "69e816f715db9261",
+  "duration": 78.2,
+  "size": 1565150
+ },
+ "4-03s": {
+  "hash": "56d6c5cbb1e592fe",
+  "duration": 194.1,
+  "size": 4170706
+ },
+ "4-11": {
+  "hash": "bc01ddc454b470de",
+  "duration": 154.8,
+  "size": 3096494
+ },
+ "4-19": {
+  "hash": "a5febd8cb1cf9060",
+  "duration": 191.7,
+  "size": 3945765
+ },
+ "4-27": {
+  "hash": "f17bc4f0de4226fa",
+  "duration": 91.1,
+  "size": 1832126
+ },
+ "5-07": {
+  "hash": "541637830ec7b4b5",
+  "duration": 55.6,
+  "size": 1141112
+ },
+ "1-08": {
+  "hash": "6dae0c0eaf2aec7e",
+  "duration": 78.1,
+  "size": 1608059
+ },
+ "1-16": {
+  "hash": "491d50fb8b1c0404",
+  "duration": 100.8,
+  "size": 2067583
+ },
+ "1-24": {
+  "hash": "98f508c0ef66ff80",
+  "duration": 86.0,
+  "size": 1767311
+ },
+ "2-06": {
+  "hash": "c2d04394d5b7479a",
+  "duration": 115.2,
+  "size": 2683475
+ },
+ "2-14": {
+  "hash": "7e09c4ce62594b4c",
+  "duration": 65.1,
+  "size": 1339618
+ },
+ "2-22": {
+  "hash": "92ea3d0edae867e7",
+  "duration": 81.6,
+  "size": 1607853
+ },
+ "3-07": {
+  "hash": "772e381ac74edd35",
+  "duration": 129.2,
+  "size": 2662608
+ },
+ "3-15": {
+  "hash": "311d3d4f2b51f9bd",
+  "duration": 89.0,
+  "size": 1830658
+ },
+ "3-23": {
+  "hash": "d5883fdc4d8d8ca9",
+  "duration": 64.8,
+  "size": 1247357
+ },
+ "4-03": {
+  "hash": "807a2b2848436398",
+  "duration": 219.5,
+  "size": 4229267
+ },
+ "4-10": {
+  "hash": "107971aafe57bab8",
+  "duration": 152.8,
+  "size": 3004861
+ },
+ "4-18": {
+  "hash": "9b0c42e68b2cca92",
+  "duration": 196.7,
+  "size": 3989245
+ },
+ "4-26": {
+  "hash": "38273e8e22714ee8",
+  "duration": 98.0,
+  "size": 2008004
+ },
+ "5-06": {
+  "hash": "2ae5695802831c72",
+  "duration": 55.1,
+  "size": 1108454
+ },
+ "1-06": {
+  "hash": "1249f3d85de15f0d",
+  "duration": 88.4,
+  "size": 1788697
+ },
+ "1-14": {
+  "hash": "b10ee0bfb58b4824",
+  "duration": 113.1,
+  "size": 2321212
+ },
+ "1-22": {
+  "hash": "caeac862292e706d",
+  "duration": 113.7,
+  "size": 2383594
+ },
+ "2-04": {
+  "hash": "408d76f4c8b7b55f",
+  "duration": 118.2,
+  "size": 2405245
+ },
+ "2-12": {
+  "hash": "083b89fbc320fa01",
+  "duration": 61.2,
+  "size": 1251357
+ },
+ "2-20": {
+  "hash": "63ccabf409425bec",
+  "duration": 74.7,
+  "size": 1513198
+ },
+ "3-05": {
+  "hash": "5e59ce0099b1e70a",
+  "duration": 125.3,
+  "size": 2625729
+ },
+ "3-13": {
+  "hash": "c61048aad1bd0eba",
+  "duration": 60.4,
+  "size": 1177258
+ },
+ "3-21": {
+  "hash": "4b2a75d0e899a5ca",
+  "duration": 94.8,
+  "size": 2039370
+ },
+ "4-01": {
+  "hash": "bbe4f11cc2ff609f",
+  "duration": 108.9,
+  "size": 2208157
+ },
+ "4-08": {
+  "hash": "e56dcb7000743308",
+  "duration": 154.3,
+  "size": 3041042
+ },
+ "4-16": {
+  "hash": "2c7f09147c740111",
+  "duration": 190.6,
+  "size": 3928923
+ },
+ "4-24": {
+  "hash": "e31e21fec509b7bc",
+  "duration": 75.8,
+  "size": 1555175
+ },
+ "5-04": {
+  "hash": "b85a402554d567c2",
+  "duration": 91.9,
+  "size": 1860203
+ },
+ "1-07": {
+  "hash": "df26a2e5cb2d07a1",
+  "duration": 120.1,
+  "size": 2438396
+ },
+ "1-15": {
+  "hash": "84775061e617a7dc",
+  "duration": 106.2,
+  "size": 2177187
+ },
+ "1-23": {
+  "hash": "b4ee6b503c7dda9a",
+  "duration": 89.2,
+  "size": 1722334
+ },
+ "2-05": {
+  "hash": "86885f75ebad8e13",
+  "duration": 120.3,
+  "size": 2465397
+ },
+ "2-13": {
+  "hash": "f6cbd3faf8690084",
+  "duration": 87.7,
+  "size": 1855563
+ },
+ "2-21": {
+  "hash": "740a96509cf4018d",
+  "duration": 88.6,
+  "size": 1897190
+ },
+ "3-06": {
+  "hash": "6abcbca299394662",
+  "duration": 132.4,
+  "size": 2785901
+ },
+ "3-14": {
+  "hash": "eac4f44f38c8676e",
+  "duration": 93.1,
+  "size": 1996409
+ },
+ "3-22": {
+  "hash": "de18ae8b1fc92c5e",
+  "duration": 80.3,
+  "size": 1655445
+ },
+ "4-02": {
+  "hash": "ce1028ac190933ef",
+  "duration": 117.3,
+  "size": 2381666
+ },
+ "4-09": {
+  "hash": "7014f76268353e15",
+  "duration": 153.1,
+  "size": 3037591
+ },
+ "4-17": {
+  "hash": "e21c0a43610990ae",
+  "duration": 190.7,
+  "size": 4000826
+ },
+ "4-25": {
+  "hash": "76d8229bb88e68f6",
+  "duration": 67.6,
+  "size": 1312325
+ },
+ "5-05": {
+  "hash": "475a9c2309578d17",
+  "duration": 61.7,
+  "size": 1176956
+ },
+ "4-06m": {
+  "hash": "61dcd471e37595b3",
+  "duration": 243.0,
+  "size": 5045139
+ },
+ "4-06l": {
+  "hash": "5ffc4c6e01776e99",
+  "duration": 174.6,
+  "size": 3493153
+ }
+}
