@@ -43,7 +43,12 @@ function droneFor(ex) {
 }
 
 // فيديو الدرس: يُبث من الإنترنت، أو يُشغَّل من الجهاز إن كان محمّلاً
-function openLessonVideo(lesson) {
+// متابعة الفيديوهات المشاهدة
+const WKEY = 'ga.videos.watched';
+export function watchedSet() { try { return new Set(JSON.parse(localStorage.getItem(WKEY) || '[]')); } catch (e) { return new Set(); } }
+function markWatched(id) { const s = watchedSet(); s.add(id); try { localStorage.setItem(WKEY, JSON.stringify([...s])); } catch (e) {} }
+
+export function openLessonVideo(lesson, { onEnded = null, onNext = null, onPrev = null } = {}) {
   speech.stop(); stopAll();
   const msg = h('div', { class: 'muted', style: { fontSize: '.85rem', textAlign: 'center', marginTop: '8px' } }, 'جارٍ تحميل الفيديو…');
   const v = h('video', { controls: '', autoplay: '', playsinline: '', preload: 'auto', style: { width: '100%', borderRadius: '12px', background: '#000', aspectRatio: '16/9' } });
@@ -54,6 +59,7 @@ function openLessonVideo(lesson) {
   v.addEventListener('loadedmetadata', () => { if (resumeAt) { v.currentTime = resumeAt; resumeAt = 0; } });
   v.addEventListener('playing', () => { msg.textContent = (cur && cur.local ? '📱 من داخل التطبيق (بدون إنترنت). ' : '') + 'اضغط ⛶ لملء الشاشة.'; });
   v.addEventListener('timeupdate', () => { activity(); });
+  v.addEventListener('ended', () => { markWatched(lesson.id); if (onEnded) onEnded(); });
   v.addEventListener('error', () => {
     if (!srcs.length || !overlay.isConnected) return;
     resumeAt = v.currentTime || resumeAt;
@@ -76,7 +82,11 @@ function openLessonVideo(lesson) {
   const close = () => { v.pause(); v.removeAttribute('src'); v.load(); overlay.remove(); };
   const box = h('div', { class: 'card', style: { width: 'min(960px, 100%)', padding: '12px', margin: 0 } },
     h('div', { class: 'row between', style: { marginBottom: '8px' } }, h('b', {}, '🎬 ' + lesson.title), h('button', { class: 'btn small', onclick: close }, '✕ إغلاق')),
-    v, msg, videos.canDownload() ? h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '8px' } }, dl) : null);
+    v, msg,
+    (onNext || onPrev) ? h('div', { class: 'row', style: { justifyContent: 'space-between', marginTop: '8px' } },
+      onPrev ? h('button', { class: 'btn small', onclick: () => { close(); onPrev(); } }, '→ الدرس السابق') : h('span'),
+      onNext ? h('button', { class: 'btn small primary', onclick: () => { markWatched(lesson.id); close(); onNext(); } }, 'الدرس التالي ←') : h('span')) : null,
+    videos.canDownload() ? h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '8px' } }, dl) : null);
   const overlay = h('div', { class: 'overlay' }, box);
   overlay.__close = close;
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });

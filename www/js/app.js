@@ -7,6 +7,7 @@ import { setNotation } from './theory.js';
 import { setVolume, getCtx } from './audio.js';
 import { renderHome, renderLevels, renderLevel, renderProgress, renderCommittee, toolsGrid } from './views/main.js';
 import { renderLesson, cleanup as cleanLesson, pause as pauseLesson } from './views/lesson.js';
+import { renderVideoList } from './views/videos-list.js';
 import { renderExplore, renderChords, cleanup as cleanExplore } from './views/explore.js';
 import { renderTuner, renderRhythm, renderEar, renderSongs, cleanup as cleanTools, pause as pauseTools } from './views/tools.js';
 import { renderReference, renderSettings } from './views/reference.js';
@@ -30,7 +31,7 @@ const NAV = [['#/', 'home', 'الرئيسية'], ['#/levels', 'book', 'الدر�
 function drawNav(path) {
   nav.innerHTML = '';
   for (const [href, ic, label] of NAV) {
-    const on = href === '#/' ? path === '' : path.startsWith(href.slice(2).split('/')[0]) || (href === '#/levels' && /^(level|lesson|exam)/.test(path)) || (href === '#/tools' && /^(explore|chords|tuner|rhythm|ear|songs|progress|analyzer|songbook)/.test(path));
+    const on = href === '#/' ? path === '' : path.startsWith(href.slice(2).split('/')[0]) || (href === '#/levels' && /^(level|lesson|exam)/.test(path)) || (href === '#/tools' && /^(videos|explore|chords|tuner|rhythm|ear|songs|progress|analyzer|songbook)/.test(path));
     nav.append(h('a', { href, class: on ? 'on' : '' }, icon(ic), label));
   }
 }
@@ -52,6 +53,7 @@ function route() {
       case 'exam': renderLesson(app, p1, true); break;
       case 'tools': app.append(h('div', { class: 'topbar' }, h('h1', {}, 'الأدوات'))); app.append(toolsGrid()); break;
       case 'explore': renderExplore(app, p1 ? { kind: p1, id: p2, root: p3, view: p4 } : {}); break;
+      case 'videos': renderVideoList(app); break;
       case 'chords': renderChords(app); break;
       case 'tuner': renderTuner(app); break;
       case 'rhythm': renderRhythm(app); break;

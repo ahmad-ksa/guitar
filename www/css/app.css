@@ -229,3 +229,9 @@ body.light .hero { color: #f6ead9; }
 .ask-chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto; }
 .ask-chip { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: .9rem; cursor: pointer; }
 .ask-chip.on { background: var(--accent); color: #1b1815; border-color: var(--accent); }
+.vrow { display: flex; align-items: center; gap: 12px; width: 100%; text-align: start; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 0 0 8px; color: var(--text); font: inherit; cursor: pointer; }
+.vrow .vnum { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--line); font-weight: 700; font-size: .9rem; }
+.vrow .vtitle { flex: 1; }
+.vrow .vmark { flex: none; color: var(--accent); }
+.vrow.seen .vnum { background: var(--good); color: #10140f; }
+.vrow.seen .vtitle { color: var(--muted); }
