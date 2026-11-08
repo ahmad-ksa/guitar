@@ -18,7 +18,9 @@ const ft = () => FT || (FT = registerPlugin('FileTransfer'));
 function loadSet() { try { return new Set(JSON.parse(localStorage.getItem(KEY) || '[]')); } catch (e) { return new Set(); } }
 function saveSet(s) { try { localStorage.setItem(KEY, JSON.stringify([...s])); } catch (e) {} }
 
-export const canDownload = () => native();
+// الفيديوهات مضمّنة داخل التطبيق، فلا حاجة لزر التحميل
+export const BUNDLED = true;
+export const canDownload = () => native() && !BUNDLED;
 export function isDownloaded(id) { return loadSet().has(id); }
 export function downloadedCount() { return loadSet().size; }
 export const urlsFor = id => VIDEO_SOURCES.map(b => b + encodeURIComponent(id) + '.mp4');
@@ -42,6 +44,7 @@ const localPath = id => `${FOLDER}/${id}.mp4`;
 // روابط التشغيل بالترتيب: الملف المحلي أولاً إن وُجد، ثم مصادر الإنترنت
 export async function videoSources(id) {
   const out = [];
+  if (BUNDLED) out.push({ src: `videos/${encodeURIComponent(id)}.mp4`, local: true });
   if (native() && isDownloaded(id)) {
     try {
       const { uri } = await fs().getUri({ directory: DIR, path: localPath(id) });

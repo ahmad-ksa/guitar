@@ -4,12 +4,17 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # بعد تحديث الفيديوهات يُعاد البناء لتدخل النسخ الجديدة
+  workflow_run:
+    workflows: ['فيديوهات الدروس']
+    types: [completed]
 
 permissions:
   contents: write
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +59,12 @@ jobs:
           pip install edge-tts
           python tools/gen_voice.py voice-list.json www/audio/voice ar-SA-HamedNeural --pronounce
           du -sh www/audio/voice
+
+      - name: فيديوهات الدروس داخل التطبيق (من فرع gh-pages)
+        run: |
+          for i in 1 2 3 4; do git fetch --depth 1 origin gh-pages && break; sleep $((i*15)); done
+          git archive FETCH_HEAD videos | tar -x -C www/
+          ls www/videos | wc -l; du -sh www/videos
 
       - name: نسخ ملفات التطبيق إلى مشروع أندرويد
         run: npx cap sync android

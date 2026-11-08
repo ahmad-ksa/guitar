@@ -4,3 +4,4 @@ node_modules/
 www/audio/voice/
 voice-list.json
 android/app/release.jks
+www/videos/

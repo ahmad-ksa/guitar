@@ -52,7 +52,7 @@ function openLessonVideo(lesson) {
   const load = () => { cur = srcs[si]; v.src = cur.src + (tries && !cur.local ? `?r=${Date.now()}` : ''); };
   videos.videoSources(lesson.id).then(list => { srcs = list; setDl(); load(); });
   v.addEventListener('loadedmetadata', () => { if (resumeAt) { v.currentTime = resumeAt; resumeAt = 0; } });
-  v.addEventListener('playing', () => { msg.textContent = (cur && cur.local ? '📱 من جهازك (بدون إنترنت). ' : '') + 'اضغط ⛶ لملء الشاشة.'; });
+  v.addEventListener('playing', () => { msg.textContent = (cur && cur.local ? '📱 من داخل التطبيق (بدون إنترنت). ' : '') + 'اضغط ⛶ لملء الشاشة.'; });
   v.addEventListener('timeupdate', () => { activity(); });
   v.addEventListener('error', () => {
     if (!srcs.length || !overlay.isConnected) return;
