@@ -85,3 +85,29 @@ jobs:
           print(len(m), 'videos')
           PY
           gh release upload videos manifest.json --clobber
+
+  pages:
+    # نسخة احتياطية على GitHub Pages (خوادم مختلفة عن ملفات الإصدارات)
+    needs: manifest
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: تنزيل الفيديوهات من الإصدار
+        env: { GH_TOKEN: '${{ github.token }}', GH_REPO: '${{ github.repository }}' }
+        run: |
+          mkdir -p site/videos && cd site/videos
+          for i in 1 2 3 4 5; do gh release download videos -p '*.mp4' -p manifest.json --skip-existing && break; echo "retry $i"; sleep $((i*10)); done
+          ls | wc -l; du -sh .
+          cd .. && touch .nojekyll && echo '<meta charset="utf-8">أكاديمية الجيتار' > index.html
+      - name: نشر فرع gh-pages
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          cd site
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "videos mirror"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" gh-pages
+      - name: فحص الرابط
+        run: |
+          sleep 60
+          for i in 1 2 3; do curl -sSIL --max-time 30 https://ahmad-ksa.github.io/guitar/videos/manifest.json | grep -iE "^HTTP|content-type|access-control" ; sleep 30; done || true

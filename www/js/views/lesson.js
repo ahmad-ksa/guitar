@@ -47,11 +47,20 @@ function openLessonVideo(lesson) {
   speech.stop(); stopAll();
   const msg = h('div', { class: 'muted', style: { fontSize: '.85rem', textAlign: 'center', marginTop: '8px' } }, 'جارٍ تحميل الفيديو…');
   const v = h('video', { controls: '', autoplay: '', playsinline: '', preload: 'auto', style: { width: '100%', borderRadius: '12px', background: '#000', aspectRatio: '16/9' } });
-  const local = videos.isDownloaded(lesson.id);
-  videos.videoSrc(lesson.id).then(src => { v.src = src; });
-  v.addEventListener('playing', () => { msg.textContent = (local ? '📱 من جهازك (بدون إنترنت). ' : '') + 'اضغط ⛶ لملء الشاشة.'; });
+  // نجرب المصادر بالترتيب (الجهاز ← المرآة ← الإصدار)، ونعيد المحاولة عند تعطل الخادم
+  let srcs = [], si = 0, tries = 0, resumeAt = 0, cur = null;
+  const load = () => { cur = srcs[si]; v.src = cur.src + (tries && !cur.local ? `?r=${Date.now()}` : ''); };
+  videos.videoSources(lesson.id).then(list => { srcs = list; setDl(); load(); });
+  v.addEventListener('loadedmetadata', () => { if (resumeAt) { v.currentTime = resumeAt; resumeAt = 0; } });
+  v.addEventListener('playing', () => { msg.textContent = (cur && cur.local ? '📱 من جهازك (بدون إنترنت). ' : '') + 'اضغط ⛶ لملء الشاشة.'; });
   v.addEventListener('timeupdate', () => { activity(); });
-  v.addEventListener('error', () => { msg.textContent = 'تعذّر تشغيل الفيديو. تأكد من اتصال الإنترنت، أو حمّل الفيديو للجهاز من زر التحميل.'; });
+  v.addEventListener('error', () => {
+    if (!srcs.length || !overlay.isConnected) return;
+    resumeAt = v.currentTime || resumeAt;
+    if (si < srcs.length - 1) { si++; msg.textContent = 'الخادم مشغول، أجرب مصدراً ثانياً…'; load(); return; }
+    if (tries < 3) { tries++; si = srcs.findIndex(x => !x.local); if (si < 0) si = 0; msg.textContent = `الخادم مشغول، إعادة المحاولة (${tries}/3)…`; setTimeout(() => { if (overlay.isConnected) load(); }, 1500 * tries); return; }
+    msg.textContent = 'تعذّر تشغيل الفيديو الآن. خوادم الفيديو مشغولة أو الإنترنت ضعيف، حاول بعد قليل.';
+  });
   const dl = h('button', { class: 'btn small' });
   const setDl = () => { dl.textContent = videos.isDownloaded(lesson.id) ? '✓ محمّل على جهازك · احذفه' : '⬇️ حمّل للمشاهدة بدون إنترنت'; };
   setDl();
@@ -61,7 +70,7 @@ function openLessonVideo(lesson) {
     try {
       await videos.downloadVideo(lesson.id, f => { dl.textContent = `⬇️ جارٍ التحميل… ${Math.round(f * 100)}%`; });
       toast('✓ تم التحميل. يشتغل الآن بدون إنترنت');
-    } catch (e) { toast('تعذّر التحميل. تأكد من الإنترنت وحاول مرة ثانية'); }
+    } catch (e) { console.warn('download failed', e); toast('تعذّر التحميل الآن (الخادم مشغول أو الإنترنت ضعيف). حاول بعد قليل'); }
     dl.disabled = false; setDl();
   });
   const close = () => { v.pause(); v.removeAttribute('src'); v.load(); overlay.remove(); };
